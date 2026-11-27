@@ -714,7 +714,7 @@ fun PlayerScreen(
 
         // Sleek tvOS-inspired Full HUD Overlay
         AnimatedVisibility(
-            visible = controlsVisible && !showChannelOverlay && state.errorMessage == null,
+            visible = controlsVisible && !showChannelOverlay && !showAudioDialog && !showSubtitleDialog && state.errorMessage == null,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(180)),
             modifier = Modifier.fillMaxSize()
@@ -1172,19 +1172,30 @@ private fun TrackPickerOverlay(
     onSelect: (TrackOption?) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val firstFocus = remember { FocusRequester() }
+
+    LaunchedEffect(tracks, includeOffOption) {
+        delay(60L)
+        try {
+            firstFocus.requestFocus()
+        } catch (_: Exception) {
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0x99000000))
+            .background(Color(0xB3000000))
             .clickable(onClick = onDismiss),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .width(360.dp)
+                .width(420.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xEE111827))
-                .padding(20.dp)
+                .background(Color(0xF50B0D11))
+                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
+                .padding(22.dp)
         ) {
             Text(
                 text = title,
@@ -1192,25 +1203,32 @@ private fun TrackPickerOverlay(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             if (tracks.isEmpty() && !includeOffOption) {
                 Text(text = emptyLabel, color = Color(0xAAFFFFFF), fontSize = 14.sp)
             } else {
+                val selectedIdx = tracks.indexOfFirst { it.isSelected }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (includeOffOption) {
-                        item {
+                        item(key = "track_off") {
                             val noneSelected = tracks.none { it.isSelected }
+                            val mod = if (noneSelected) Modifier.focusRequester(firstFocus) else Modifier
                             TrackRowItem(
                                 label = offLabel,
                                 selected = noneSelected,
+                                modifier = mod,
                                 onClick = { onSelect(null) }
                             )
                         }
                     }
-                    items(tracks, key = { it.id }) { track ->
+                    items(tracks.size, key = { tracks[it].id }) { idx ->
+                        val track = tracks[idx]
+                        val shouldFocus = if (selectedIdx >= 0) idx == selectedIdx else (!includeOffOption && idx == 0)
+                        val mod = if (shouldFocus) Modifier.focusRequester(firstFocus) else Modifier
                         TrackRowItem(
                             label = track.label,
                             selected = track.isSelected,
+                            modifier = mod,
                             onClick = { onSelect(track) }
                         )
                     }
@@ -1221,9 +1239,14 @@ private fun TrackPickerOverlay(
 }
 
 @Composable
-private fun TrackRowItem(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun TrackRowItem(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .tvFocusable(
                 shape = RoundedCornerShape(12.dp),
@@ -1231,12 +1254,20 @@ private fun TrackRowItem(label: String, selected: Boolean, onClick: () -> Unit) 
                 onClick = onClick
             )
             .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) Color(0xFFFF5A1F) else Color(0x22FFFFFF))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .background(if (selected) Color(0xFFFF5A1F) else Color(0x26FFFFFF))
+            .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
         if (selected) {
             Text(text = "✓", color = Color.White, fontWeight = FontWeight.Bold)
         }

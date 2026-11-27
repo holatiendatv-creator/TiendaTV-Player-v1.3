@@ -1,13 +1,8 @@
 package com.tiendatv.player.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -41,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -52,7 +45,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 
@@ -66,9 +58,9 @@ enum class NavTab {
 }
 
 /**
- * TiviMate-inspired overlay navigation rail:
- * Keeps a fixed 64dp slot in the parent Row so content NEVER reflows or jitters,
- * while smoothly gliding open to 206dp over the left edge when focused.
+ * Clean, zero-overlap navigation rail:
+ * Stays compact (60dp icons) while browsing content and expands side-by-side (184dp)
+ * when focused—never overlapping titles or categories.
  */
 @Composable
 fun TiendaNavigationRail(
@@ -80,20 +72,13 @@ fun TiendaNavigationRail(
     val c = LocalTiendaColors.current
     var isRailFocused by remember { mutableStateOf(false) }
 
-    val overlayWidth by animateDpAsState(
-        targetValue = if (isRailFocused) 206.dp else 64.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "railOverlayWidth"
+    val railWidth by animateDpAsState(
+        targetValue = if (isRailFocused) 184.dp else 60.dp,
+        animationSpec = tween(durationMillis = 130),
+        label = "railWidth"
     )
 
-    val railSurface = if (c.isDark) {
-        if (isRailFocused) Color(0xF50B0D11) else Color(0xFF0B0D11)
-    } else {
-        c.glassRail
-    }
+    val railSurface = if (c.isDark) Color(0xFF0B0D11) else c.glassRail
 
     val items = listOf(
         Triple(NavTab.HOME, Icons.Rounded.Home, strings.navHome),
@@ -104,24 +89,19 @@ fun TiendaNavigationRail(
         Triple(NavTab.SETTINGS, Icons.Rounded.Settings, strings.navSettings)
     )
 
-    // Fixed 64dp footprint prevents parent Row reflow; inner Column expands cleanly as an overlay
-    Box(
+    Row(
         modifier = modifier
             .fillMaxHeight()
-            .width(64.dp)
-            .zIndex(20f),
-        contentAlignment = Alignment.TopStart
+            .width(railWidth)
+            .background(railSurface)
+            .onFocusChanged { isRailFocused = it.hasFocus }
     ) {
         Column(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxHeight()
-                .wrapContentWidth(align = Alignment.Start, unbounded = true)
-                .width(overlayWidth)
-                .shadow(elevation = if (isRailFocused) 18.dp else 0.dp)
-                .onFocusChanged { isRailFocused = it.hasFocus }
-                .background(railSurface)
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 16.dp, horizontal = 10.dp),
+                .padding(vertical = 16.dp, horizontal = 8.dp),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -134,8 +114,8 @@ fun TiendaNavigationRail(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(11.dp))
                         .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
                     contentAlignment = Alignment.Center
                 ) {
@@ -143,23 +123,20 @@ fun TiendaNavigationRail(
                         imageVector = Icons.Rounded.LiveTv,
                         contentDescription = "TiendaTV",
                         tint = Color.White,
-                        modifier = Modifier.size(21.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                AnimatedVisibility(
-                    visible = isRailFocused,
-                    enter = fadeIn(tween(140)),
-                    exit = fadeOut(tween(90))
-                ) {
+                if (isRailFocused) {
                     Text(
                         text = buildAnnotatedString {
                             withStyle(SpanStyle(color = c.textPrimary)) { append("Tienda") }
                             withStyle(SpanStyle(color = c.accent)) { append("TV") }
                         },
-                        fontSize = 18.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold,
                         maxLines = 1,
-                        modifier = Modifier.padding(start = 12.dp)
+                        overflow = TextOverflow.Clip,
+                        modifier = Modifier.padding(start = 10.dp)
                     )
                 }
             }
@@ -171,12 +148,12 @@ fun TiendaNavigationRail(
                 val shape = RoundedCornerShape(12.dp)
                 val pillBg by animateColorAsState(
                     targetValue = if (selected) c.accentSoft else Color.Transparent,
-                    animationSpec = tween(160),
+                    animationSpec = tween(140),
                     label = "railItemBg"
                 )
                 val tint by animateColorAsState(
                     targetValue = if (selected) c.accent else c.textSecondary,
-                    animationSpec = tween(160),
+                    animationSpec = tween(140),
                     label = "railItemTint"
                 )
 
@@ -190,7 +167,7 @@ fun TiendaNavigationRail(
                         )
                         .clip(shape)
                         .background(pillBg)
-                        .padding(vertical = 10.dp, horizontal = 10.dp),
+                        .padding(vertical = 10.dp, horizontal = 9.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start
                 ) {
@@ -198,13 +175,9 @@ fun TiendaNavigationRail(
                         imageVector = icon,
                         contentDescription = label,
                         tint = tint,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(21.dp)
                     )
-                    AnimatedVisibility(
-                        visible = isRailFocused,
-                        enter = fadeIn(tween(140)),
-                        exit = fadeOut(tween(90))
-                    ) {
+                    if (isRailFocused) {
                         Text(
                             text = label,
                             color = tint,
@@ -212,11 +185,18 @@ fun TiendaNavigationRail(
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(start = 14.dp)
+                            modifier = Modifier.padding(start = 12.dp)
                         )
                     }
                 }
             }
         }
+
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(1.dp)
+                .background(c.glassBorder)
+        )
     }
 }

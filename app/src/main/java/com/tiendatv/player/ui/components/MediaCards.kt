@@ -44,7 +44,7 @@ import com.tiendatv.player.ui.theme.LocalTiendaColors
 import java.util.Locale
 
 /**
- * Quiet, borderless poster card that softly illuminates only when focused.
+ * TiviMate-inspired clean borderless poster card with bottom-left rating badge and title underneath.
  */
 @Composable
 fun PosterMediaCard(
@@ -53,15 +53,15 @@ fun PosterMediaCard(
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
-    cardWidth: Dp = 158.dp,
+    cardWidth: Dp = 148.dp,
     onFocused: (() -> Unit)? = null
 ) {
     val c = LocalTiendaColors.current
-    val posterShape = RoundedCornerShape(16.dp)
+    val posterShape = RoundedCornerShape(14.dp)
 
     Column(
         modifier = modifier.width(cardWidth),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.Start
     ) {
         Box(
             modifier = Modifier
@@ -88,7 +88,7 @@ fun PosterMediaCard(
                     Text(
                         text = item.name.take(2).uppercase(Locale.ROOT),
                         color = c.textSecondary,
-                        fontSize = 26.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -97,19 +97,19 @@ fun PosterMediaCard(
             if (item.rating > 0.0) {
                 Row(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
+                        .align(Alignment.BottomStart)
                         .padding(7.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xB80B0D11))
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(c.accent)
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Star,
                         contentDescription = null,
-                        tint = Color(0xFFF5B041),
-                        modifier = Modifier.size(11.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(10.dp)
                     )
                     Text(
                         text = String.format(Locale.US, "%.1f", item.rating),
@@ -120,37 +120,38 @@ fun PosterMediaCard(
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp)
-                    .size(26.dp)
-                    .tvFocusable(shape = CircleShape, focusScale = 1.08f, onClick = onToggleFavorite)
-                    .clip(CircleShape)
-                    .background(Color(0x990B0D11)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFavorite) c.accent else Color.White,
-                    modifier = Modifier.size(14.dp)
-                )
+            if (isFavorite) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xB30B0D11)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Favorite,
+                        contentDescription = "Favorite",
+                        tint = c.accent,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(7.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = item.name,
             color = c.textPrimary,
-            fontSize = 12.5.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
+            textAlign = TextAlign.Start,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp)
+                .padding(horizontal = 2.dp)
         )
     }
 }
@@ -210,25 +211,29 @@ fun LandscapeHighlightCard(
     }
 }
 
+/**
+ * Continue Watching / Recently Watched card with a D-pad-reachable "Quitar / Remove" pill directly below.
+ */
 @Composable
 fun ContinueWatchingCard(
     entry: WatchHistoryEntity,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onFocused: (() -> Unit)? = null,
-    onRemove: (() -> Unit)? = null
+    onRemove: (() -> Unit)? = null,
+    removeLabel: String = "Quitar"
 ) {
     val c = LocalTiendaColors.current
     val shape = RoundedCornerShape(16.dp)
 
-    Box(
-        modifier = modifier
-            .width(228.dp)
-            .height(128.dp)
+    Column(
+        modifier = modifier.width(224.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .height(124.dp)
                 .tvFocusable(
                     shape = shape,
                     focusScale = 1.03f,
@@ -259,7 +264,7 @@ fun ContinueWatchingCard(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(9.dp)
-                    .size(30.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
                     .background(c.accent),
                 contentAlignment = Alignment.Center
@@ -268,7 +273,7 @@ fun ContinueWatchingCard(
                     imageVector = Icons.Rounded.PlayArrow,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(17.dp)
                 )
             }
 
@@ -276,12 +281,12 @@ fun ContinueWatchingCard(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(11.dp)
+                    .padding(10.dp)
             ) {
                 Text(
                     text = entry.title,
                     color = Color.White,
-                    fontSize = 13.5.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -296,7 +301,7 @@ fun ContinueWatchingCard(
                     )
                 }
                 if (entry.progressFraction > 0f) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
                     LinearProgressIndicator(
                         progress = { entry.progressFraction },
                         color = c.accent,
@@ -311,25 +316,30 @@ fun ContinueWatchingCard(
         }
 
         if (onRemove != null) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .size(26.dp)
                     .tvFocusable(
-                        shape = CircleShape,
-                        focusScale = 1.12f,
+                        shape = RoundedCornerShape(10.dp),
+                        focusScale = 1.03f,
                         onClick = onRemove
                     )
-                    .clip(CircleShape)
-                    .background(Color(0xB80B0D11)),
-                contentAlignment = Alignment.Center
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x33FFFFFF))
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
-                    contentDescription = "Remove",
-                    tint = Color.White,
-                    modifier = Modifier.size(14.dp)
+                    contentDescription = removeLabel,
+                    tint = Color(0xDDFFFFFF),
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = removeLabel,
+                    color = Color(0xDDFFFFFF),
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }

@@ -73,6 +73,7 @@ fun HomeScreen(
     onOpenMedia: (MediaItemEntity) -> Unit,
     onResumeHistory: (WatchHistoryEntity) -> Unit,
     onRemoveHistory: (String) -> Unit,
+    onClearHistory: () -> Unit,
     onToggleFavorite: (MediaItemEntity) -> Unit,
     onReloadCatalog: () -> Unit,
     onExitApp: () -> Unit
@@ -279,7 +280,8 @@ fun HomeScreen(
                                         }
                                     },
                                     onClick = { onResumeHistory(entry) },
-                                    onRemove = { onRemoveHistory(entry.uid) }
+                                    onRemove = { onRemoveHistory(entry.uid) },
+                                    removeLabel = strings.removeItem
                                 )
                             }
                         }
@@ -291,7 +293,12 @@ fun HomeScreen(
             if (recentlyWatched.isNotEmpty()) {
                 item(key = "recently_watched_row") {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        SectionHeader(title = strings.recentlyWatched)
+                        SectionHeader(
+                            title = strings.recentlyWatched,
+                            actionText = strings.clearWatchHistory,
+                            onActionClick = onClearHistory,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             items(recentlyWatched, key = { "recent_${it.uid}" }) { entry ->
                                 ContinueWatchingCard(
@@ -302,7 +309,8 @@ fun HomeScreen(
                                         }
                                     },
                                     onClick = { onResumeHistory(entry) },
-                                    onRemove = { onRemoveHistory(entry.uid) }
+                                    onRemove = { onRemoveHistory(entry.uid) },
+                                    removeLabel = strings.removeItem
                                 )
                             }
                         }

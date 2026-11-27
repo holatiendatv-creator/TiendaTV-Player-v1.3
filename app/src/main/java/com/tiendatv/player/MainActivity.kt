@@ -213,6 +213,7 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                                         onOpenMedia = { viewModel.openMedia(it) },
                                                         onResumeHistory = { viewModel.resumeHistory(it) },
                                                         onRemoveHistory = { viewModel.removeHistoryItem(it) },
+                                                        onClearHistory = { viewModel.clearHistory() },
                                                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                                                         onReloadCatalog = { viewModel.syncActiveProfile() },
                                                         onExitApp = { activity?.finish() }
