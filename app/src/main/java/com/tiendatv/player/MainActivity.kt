@@ -12,9 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
@@ -126,7 +124,11 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                 } else {
                     FrostedCanvasBackground(modifier = Modifier.safeDrawingPadding()) {
                         val showLogin = state.activeProfile == null || state.showAddProfileModal
-                        if (showLogin) {
+                        if (!state.isProfileLoaded) {
+                            // v1.9: never flash the login screen while Room is still
+                            // loading the saved profile. Static splash only.
+                            StartupSplash()
+                        } else if (showLogin) {
                             LoginScreen(
                                 profiles = state.profiles,
                                 isBusy = state.loginBusy,
@@ -197,14 +199,8 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                                 AnimatedContent(
                                                     targetState = state.selectedTab,
                                                     transitionSpec = {
-                                                        val forward = targetState.ordinal >= initialState.ordinal
-                                                        val enter = fadeIn(tween(220)) + slideInHorizontally(tween(220)) { w ->
-                                                            if (forward) w / 20 else -w / 20
-                                                        }
-                                                        val exit = fadeOut(tween(160)) + slideOutHorizontally(tween(160)) { w ->
-                                                            if (forward) -w / 24 else w / 24
-                                                        }
-                                                        enter togetherWith exit
+                                                        // v1.9: fade only, 150ms — no slide, no double-screen compose.
+                                                        fadeIn(tween(150)) togetherWith fadeOut(tween(120))
                                                     },
                                                     label = "tabTransition"
                                                 ) { tab ->
@@ -339,6 +335,43 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StartupSplash() {
+    val c = LocalTiendaColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.LiveTv,
+                    contentDescription = "TiendaTV",
+                    tint = Color.White,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+            Text(
+                text = "TiendaTV",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
         }
     }
 }

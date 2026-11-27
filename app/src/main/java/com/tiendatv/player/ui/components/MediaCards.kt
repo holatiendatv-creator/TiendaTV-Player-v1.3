@@ -1,7 +1,6 @@
 package com.tiendatv.player.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +56,7 @@ fun PosterMediaCard(
     cardWidth: Dp = 176.dp
 ) {
     val c = LocalTiendaColors.current
-    val posterShape = RoundedCornerShape(18.dp)
+    val posterShape = RoundedCornerShape(12.dp)
 
     Column(
         modifier = modifier.width(cardWidth),
@@ -70,7 +69,7 @@ fun PosterMediaCard(
                 .tvFocusable(shape = posterShape, onClick = onClick)
                 .clip(posterShape)
                 .background(if (c.isDark) Color(0xFF1A1E28) else Color(0xFFDCE3EE))
-                .border(1.dp, c.glassBorder, posterShape)
+                
         ) {
             if (item.logoUrl.isNotBlank()) {
                 AsyncImage(
@@ -161,7 +160,7 @@ fun LandscapeHighlightCard(
     modifier: Modifier = Modifier
 ) {
     val c = LocalTiendaColors.current
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(12.dp)
 
     Box(
         modifier = modifier
@@ -170,7 +169,7 @@ fun LandscapeHighlightCard(
             .tvFocusable(shape = shape, onClick = onClick)
             .clip(shape)
             .background(if (c.isDark) Color(0xFF1A1E28) else Color(0xFFCBD5E1))
-            .border(1.dp, c.glassBorder, shape)
+            
     ) {
         val img = item.backdropUrl.ifBlank { item.logoUrl }
         if (img.isNotBlank()) {
@@ -211,7 +210,7 @@ fun ContinueWatchingCard(
     modifier: Modifier = Modifier
 ) {
     val c = LocalTiendaColors.current
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(12.dp)
 
     Box(
         modifier = modifier
@@ -220,7 +219,7 @@ fun ContinueWatchingCard(
             .tvFocusable(shape = shape, onClick = onClick)
             .clip(shape)
             .background(if (c.isDark) Color(0xFF1A1E28) else Color(0xFFCBD5E1))
-            .border(1.dp, c.glassBorder, shape)
+            
     ) {
         if (entry.posterUrl.isNotBlank()) {
             AsyncImage(

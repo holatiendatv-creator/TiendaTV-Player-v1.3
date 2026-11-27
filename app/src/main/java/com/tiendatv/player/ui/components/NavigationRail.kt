@@ -2,9 +2,8 @@ package com.tiendatv.player.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -76,10 +75,7 @@ fun TiendaNavigationRail(
 
     val railWidth by animateDpAsState(
         targetValue = if (isRailFocused) 204.dp else 72.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        animationSpec = tween(150),
         label = "railWidth"
     )
 
@@ -153,7 +149,7 @@ fun TiendaNavigationRail(
                 label = "railItemBg"
             )
             val tint by animateColorAsState(
-                targetValue = if (selected) c.accent else c.textSecondary,
+                targetValue = if (selected) Color.White else c.textSecondary,
                 label = "railItemTint"
             )
 

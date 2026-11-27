@@ -73,6 +73,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import com.tiendatv.player.data.local.UserSettings
@@ -630,47 +632,67 @@ private fun TrackPickerOverlay(
     onSelect: (TrackOption?) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0x99000000))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center
+    // v1.9: a real Dialog, not a Box drawn over the player. Before, focus
+    // stayed on the Play/Pause button behind the popup, so a Firestick
+    // remote could see the list but never reach it — Enter re-triggered
+    // whatever was underneath. Dialog traps focus inside, and the first
+    // row gets focus on open so D-pad Down / Enter works immediately.
+    val firstRowFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        try {
+            firstRowFocus.requestFocus()
+        } catch (_: Exception) {
+        }
+    }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .width(360.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xEE111827))
-                .padding(20.dp)
+                .fillMaxSize()
+                .background(Color(0x99000000))
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = title,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            if (tracks.isEmpty() && !includeOffOption) {
-                Text(text = emptyLabel, color = Color(0xAAFFFFFF), fontSize = 14.sp)
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (includeOffOption) {
-                        item {
-                            val noneSelected = tracks.none { it.isSelected }
+            Column(
+                modifier = Modifier
+                    .width(360.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xEE1C1C1E))
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                if (tracks.isEmpty() && !includeOffOption) {
+                    Text(text = emptyLabel, color = Color(0xAAFFFFFF), fontSize = 14.sp)
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (includeOffOption) {
+                            item {
+                                val noneSelected = tracks.none { it.isSelected }
+                                TrackRowItem(
+                                    label = offLabel,
+                                    selected = noneSelected,
+                                    onClick = { onSelect(null) },
+                                    focusRequester = firstRowFocus
+                                )
+                            }
+                        }
+                        items(tracks, key = { it.id }) { track ->
                             TrackRowItem(
-                                label = offLabel,
-                                selected = noneSelected,
-                                onClick = { onSelect(null) }
+                                label = track.label,
+                                selected = track.isSelected,
+                                onClick = { onSelect(track) },
+                                // Focus the selected row if there is one, else the first row.
+                                focusRequester = if (track.isSelected || (!includeOffOption && tracks.firstOrNull() == track)) firstRowFocus else null
                             )
                         }
-                    }
-                    items(tracks, key = { it.id }) { track ->
-                        TrackRowItem(
-                            label = track.label,
-                            selected = track.isSelected,
-                            onClick = { onSelect(track) }
-                        )
                     }
                 }
             }
@@ -679,13 +701,19 @@ private fun TrackPickerOverlay(
 }
 
 @Composable
-private fun TrackRowItem(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun TrackRowItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester? = null
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .tvFocusable(
                 shape = RoundedCornerShape(12.dp),
-                focusBorderColor = Color(0xFFFF7A45),
+                focusBorderColor = Color.White,
                 onClick = onClick
             )
             .clip(RoundedCornerShape(12.dp))

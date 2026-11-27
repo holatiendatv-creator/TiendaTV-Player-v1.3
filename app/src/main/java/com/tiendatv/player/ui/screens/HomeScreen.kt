@@ -37,7 +37,6 @@ import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -64,7 +63,6 @@ import com.tiendatv.player.ui.components.PosterMediaCard
 import com.tiendatv.player.ui.components.tvFocusable
 import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
-import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -102,14 +100,8 @@ fun HomeScreen(
 
     var showcaseIndex by remember(showcaseItems) { mutableIntStateOf(0) }
 
-    LaunchedEffect(showcaseItems) {
-        if (showcaseItems.size > 1) {
-            while (true) {
-                delay(7_500L)
-                showcaseIndex = (showcaseIndex + 1) % showcaseItems.size
-            }
-        }
-    }
+    // v1.9: no auto-rotate. The 7.5s timer + 850ms full-screen crossfade
+    // was the biggest Home hiccup — the hero now stays on the first item.
 
     val currentShowcase = showcaseItems.getOrNull(showcaseIndex) ?: heroItem
 
@@ -117,7 +109,7 @@ fun HomeScreen(
         if (currentShowcase != null) {
             Crossfade(
                 targetState = currentShowcase,
-                animationSpec = tween(durationMillis = 850),
+                animationSpec = tween(durationMillis = 300),
                 label = "homeBackdropCrossfade",
                 modifier = Modifier.fillMaxSize()
             ) { item ->

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,22 +25,19 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 
 /**
- * Silky spring-animated TV D-pad + touch interaction modifier.
+ * v1.9 crisp focus: fast 120ms ease-out, scale 1.03, thin white ring.
+ * No spring bounce — the old spring (damping 0.82, StiffnessMediumLow)
+ * on scale + border colour + border width made every D-pad move wobble.
  */
 fun Modifier.tvFocusable(
-    shape: Shape = RoundedCornerShape(16.dp),
-    focusScale: Float = 1.045f,
-    focusBorderWidth: Dp = 2.5.dp,
+    shape: Shape = RoundedCornerShape(12.dp),
+    focusScale: Float = 1.03f,
+    focusBorderWidth: Dp = 2.dp,
     focusBorderColor: Color? = null,
     onFocused: (() -> Unit)? = null,
     onClick: () -> Unit
@@ -50,22 +48,19 @@ fun Modifier.tvFocusable(
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused) focusScale else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.82f,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        animationSpec = tween(120),
         label = "tvFocusScale"
     )
 
     val borderColor by animateColorAsState(
         targetValue = if (isFocused) targetRingColor else Color.Transparent,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(120),
         label = "tvFocusBorderColor"
     )
 
     val borderWidth by animateDpAsState(
         targetValue = if (isFocused) focusBorderWidth else 0.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(120),
         label = "tvFocusBorderWidth"
     )
 
@@ -83,16 +78,9 @@ fun Modifier.tvFocusable(
             }
             isFocused = nowFocused
         }
-        .onKeyEvent { event ->
-            if (event.type == KeyEventType.KeyUp &&
-                (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter)
-            ) {
-                onClick()
-                true
-            } else {
-                false
-            }
-        }
+        // v1.9: do NOT also handle Enter here — .clickable() already fires
+        // onClick for D-pad Center / Enter, so a separate onKeyEvent handler
+        // double-fired every remote press (e.g. audio track picked twice).
         .focusable()
         .clickable(onClick = onClick)
 }
