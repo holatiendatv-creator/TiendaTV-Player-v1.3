@@ -227,6 +227,9 @@ interface WatchHistoryDao {
 
     @Query("DELETE FROM watch_history WHERE profileId = :profileId")
     suspend fun clearProfileHistory(profileId: Long)
+
+    @Query("DELETE FROM watch_history WHERE uid = :uid")
+    suspend fun deleteByUid(uid: String)
 }
 
 @Dao

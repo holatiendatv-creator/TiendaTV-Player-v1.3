@@ -364,17 +364,12 @@ class TiendaPlayerController(
     fun selectAudioTrack(option: TrackOption) {
         if (isReleased) return
         val group = option.trackGroup ?: return
-        // v1.9: a manual pick wins over the Spanish auto-pick. Mark it applied
-        // so applyLabelFallbackAudioPreference() can never undo it on the
-        // next onTracksChanged, and do NOT refresh from the stale
-        // exoPlayer.currentTracks here — onTracksChanged refreshes with the
-        // new selection once ExoPlayer has applied the override.
-        appliedAutoAudioForCurrentItem = true
         val override = TrackSelectionOverride(group, option.trackIndex)
         exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
             .buildUpon()
             .setOverrideForType(override)
             .build()
+        refreshTracks(exoPlayer.currentTracks)
     }
 
     fun selectSubtitleTrack(option: TrackOption?) {

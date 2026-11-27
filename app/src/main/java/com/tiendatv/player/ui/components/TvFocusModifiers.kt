@@ -5,7 +5,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,17 +24,20 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 
 /**
- * v1.9 crisp focus: fast 120ms ease-out, scale 1.03, thin white ring.
- * No spring bounce — the old spring (damping 0.82, StiffnessMediumLow)
- * on scale + border colour + border width made every D-pad move wobble.
+ * Calm, zen TV D-pad + touch interaction modifier with gentle spring scale and glowing focus ring.
  */
 fun Modifier.tvFocusable(
-    shape: Shape = RoundedCornerShape(12.dp),
+    shape: Shape = RoundedCornerShape(16.dp),
     focusScale: Float = 1.03f,
     focusBorderWidth: Dp = 2.dp,
     focusBorderColor: Color? = null,
@@ -48,19 +50,22 @@ fun Modifier.tvFocusable(
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused) focusScale else 1f,
-        animationSpec = tween(120),
+        animationSpec = spring(
+            dampingRatio = 0.90f,
+            stiffness = Spring.StiffnessMedium
+        ),
         label = "tvFocusScale"
     )
 
     val borderColor by animateColorAsState(
         targetValue = if (isFocused) targetRingColor else Color.Transparent,
-        animationSpec = tween(120),
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "tvFocusBorderColor"
     )
 
     val borderWidth by animateDpAsState(
         targetValue = if (isFocused) focusBorderWidth else 0.dp,
-        animationSpec = tween(120),
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "tvFocusBorderWidth"
     )
 
@@ -78,16 +83,22 @@ fun Modifier.tvFocusable(
             }
             isFocused = nowFocused
         }
-        // v1.9: do NOT also handle Enter here — .clickable() already fires
-        // onClick for D-pad Center / Enter, so a separate onKeyEvent handler
-        // double-fired every remote press (e.g. audio track picked twice).
+        .onKeyEvent { event ->
+            if (event.type == KeyEventType.KeyUp &&
+                (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter)
+            ) {
+                onClick()
+                true
+            } else {
+                false
+            }
+        }
         .focusable()
         .clickable(onClick = onClick)
 }
 
 /**
- * Provides smooth pivot-style BringIntoView scrolling across LazyColumn, LazyRow, and LazyVerticalGrid
- * so D-pad navigation glides instead of snapping abruptly.
+ * Provides calm, native-feeling pivot scrolling across Lazy lists and grids.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -96,7 +107,7 @@ fun ProvideSmoothTvScrolling(content: @Composable () -> Unit) {
         object : BringIntoViewSpec {
             override val scrollAnimationSpec = spring<Float>(
                 dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
+                stiffness = Spring.StiffnessMedium
             )
 
             override fun calculateScrollDistance(
@@ -104,10 +115,14 @@ fun ProvideSmoothTvScrolling(content: @Composable () -> Unit) {
                 size: Float,
                 containerSize: Float
             ): Float {
-                val targetCenter = (containerSize - size) * 0.38f
-                val maxOffset = (containerSize - size).coerceAtLeast(0f)
-                val clampedTarget = targetCenter.coerceIn(0f, maxOffset)
-                return offset - clampedTarget
+                val leadingEdge = offset
+                val trailingEdge = offset + size
+                val safeMargin = (containerSize * 0.22f).coerceAtMost(140f)
+                return when {
+                    leadingEdge < safeMargin -> leadingEdge - safeMargin
+                    trailingEdge > containerSize - safeMargin -> trailingEdge - (containerSize - safeMargin)
+                    else -> 0f
+                }
             }
         }
     }

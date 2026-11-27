@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -43,8 +44,7 @@ import com.tiendatv.player.ui.theme.LocalTiendaColors
 import java.util.Locale
 
 /**
- * Clean frameless poster card with centered bold title underneath,
- * matching the Películas & Series grid reference screenshots.
+ * Quiet, borderless poster card that softly illuminates only when focused.
  */
 @Composable
 fun PosterMediaCard(
@@ -53,10 +53,11 @@ fun PosterMediaCard(
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
-    cardWidth: Dp = 176.dp
+    cardWidth: Dp = 158.dp,
+    onFocused: (() -> Unit)? = null
 ) {
     val c = LocalTiendaColors.current
-    val posterShape = RoundedCornerShape(12.dp)
+    val posterShape = RoundedCornerShape(16.dp)
 
     Column(
         modifier = modifier.width(cardWidth),
@@ -66,10 +67,14 @@ fun PosterMediaCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .tvFocusable(shape = posterShape, onClick = onClick)
+                .tvFocusable(
+                    shape = posterShape,
+                    focusScale = 1.035f,
+                    onFocused = onFocused,
+                    onClick = onClick
+                )
                 .clip(posterShape)
-                .background(if (c.isDark) Color(0xFF1A1E28) else Color(0xFFDCE3EE))
-                
+                .background(if (c.isDark) Color(0xFF161A22) else Color(0xFFDCE3EE))
         ) {
             if (item.logoUrl.isNotBlank()) {
                 AsyncImage(
@@ -83,7 +88,7 @@ fun PosterMediaCard(
                     Text(
                         text = item.name.take(2).uppercase(Locale.ROOT),
                         color = c.textSecondary,
-                        fontSize = 28.sp,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -93,10 +98,10 @@ fun PosterMediaCard(
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(8.dp)
+                        .padding(7.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xB80B0D11))
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
@@ -104,12 +109,12 @@ fun PosterMediaCard(
                         imageVector = Icons.Rounded.Star,
                         contentDescription = null,
                         tint = Color(0xFFF5B041),
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(11.dp)
                     )
                     Text(
                         text = String.format(Locale.US, "%.1f", item.rating),
                         color = Color.White,
-                        fontSize = 11.sp,
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -118,9 +123,9 @@ fun PosterMediaCard(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(7.dp)
-                    .size(28.dp)
-                    .tvFocusable(shape = CircleShape, focusScale = 1.1f, onClick = onToggleFavorite)
+                    .padding(6.dp)
+                    .size(26.dp)
+                    .tvFocusable(shape = CircleShape, focusScale = 1.08f, onClick = onToggleFavorite)
                     .clip(CircleShape)
                     .background(Color(0x990B0D11)),
                 contentAlignment = Alignment.Center
@@ -129,17 +134,17 @@ fun PosterMediaCard(
                     imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     contentDescription = "Favorite",
                     tint = if (isFavorite) c.accent else Color.White,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(7.dp))
         Text(
             text = item.name,
             color = c.textPrimary,
-            fontSize = 13.5.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -150,26 +155,28 @@ fun PosterMediaCard(
     }
 }
 
-/**
- * 16:9 widescreen card for the Home "NOVEDADES" carousel (matches IMG_5973).
- */
 @Composable
 fun LandscapeHighlightCard(
     item: MediaItemEntity,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: (() -> Unit)? = null
 ) {
     val c = LocalTiendaColors.current
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(16.dp)
 
     Box(
         modifier = modifier
-            .width(248.dp)
-            .height(142.dp)
-            .tvFocusable(shape = shape, onClick = onClick)
+            .width(228.dp)
+            .height(128.dp)
+            .tvFocusable(
+                shape = shape,
+                focusScale = 1.03f,
+                onFocused = onFocused,
+                onClick = onClick
+            )
             .clip(shape)
-            .background(if (c.isDark) Color(0xFF1A1E28) else Color(0xFFCBD5E1))
-            
+            .background(if (c.isDark) Color(0xFF161A22) else Color(0xFFCBD5E1))
     ) {
         val img = item.backdropUrl.ifBlank { item.logoUrl }
         if (img.isNotBlank()) {
@@ -192,13 +199,13 @@ fun LandscapeHighlightCard(
         Text(
             text = item.name,
             color = Color.White,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
         )
     }
 }
@@ -207,87 +214,122 @@ fun LandscapeHighlightCard(
 fun ContinueWatchingCard(
     entry: WatchHistoryEntity,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: (() -> Unit)? = null,
+    onRemove: (() -> Unit)? = null
 ) {
     val c = LocalTiendaColors.current
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(16.dp)
 
     Box(
         modifier = modifier
-            .width(248.dp)
-            .height(142.dp)
-            .tvFocusable(shape = shape, onClick = onClick)
-            .clip(shape)
-            .background(if (c.isDark) Color(0xFF1A1E28) else Color(0xFFCBD5E1))
-            
+            .width(228.dp)
+            .height(128.dp)
     ) {
-        if (entry.posterUrl.isNotBlank()) {
-            AsyncImage(
-                model = entry.posterUrl,
-                contentDescription = entry.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color(0x22000000), Color(0xD90B0D11))
-                    )
+                .tvFocusable(
+                    shape = shape,
+                    focusScale = 1.03f,
+                    onFocused = onFocused,
+                    onClick = onClick
                 )
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(10.dp)
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(c.accent),
-            contentAlignment = Alignment.Center
+                .clip(shape)
+                .background(if (c.isDark) Color(0xFF161A22) else Color(0xFFCBD5E1))
         ) {
-            Icon(
-                imageVector = Icons.Rounded.PlayArrow,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
+            if (entry.posterUrl.isNotBlank()) {
+                AsyncImage(
+                    model = entry.posterUrl,
+                    contentDescription = entry.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0x22000000), Color(0xDD0B0D11))
+                        )
+                    )
             )
-        }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(9.dp)
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(c.accent),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            Text(
-                text = entry.title,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (entry.subtitle.isNotBlank()) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(11.dp)
+            ) {
                 Text(
-                    text = entry.subtitle,
-                    color = Color(0xCCFFFFFF),
-                    fontSize = 11.sp,
+                    text = entry.title,
+                    color = Color.White,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (entry.subtitle.isNotBlank()) {
+                    Text(
+                        text = entry.subtitle,
+                        color = Color(0xCCFFFFFF),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (entry.progressFraction > 0f) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { entry.progressFraction },
+                        color = c.accent,
+                        trackColor = Color(0x55FFFFFF),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.5.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                    )
+                }
             }
-            if (entry.progressFraction > 0f) {
-                Spacer(modifier = Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { entry.progressFraction },
-                    color = c.accent,
-                    trackColor = Color(0x55FFFFFF),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
+        }
+
+        if (onRemove != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .size(26.dp)
+                    .tvFocusable(
+                        shape = CircleShape,
+                        focusScale = 1.12f,
+                        onClick = onRemove
+                    )
+                    .clip(CircleShape)
+                    .background(Color(0xB80B0D11)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = "Remove",
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }

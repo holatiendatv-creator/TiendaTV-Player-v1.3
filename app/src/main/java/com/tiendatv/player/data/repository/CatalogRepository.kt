@@ -334,4 +334,8 @@ class CatalogRepository(
     suspend fun clearHistory(profileId: Long) = withContext(Dispatchers.IO) {
         historyDao.clearProfileHistory(profileId)
     }
+
+    suspend fun removeHistoryItem(uid: String) = withContext(Dispatchers.IO) {
+        historyDao.deleteByUid(uid)
+    }
 }

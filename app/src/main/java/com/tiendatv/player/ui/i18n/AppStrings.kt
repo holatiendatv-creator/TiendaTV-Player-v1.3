@@ -24,6 +24,8 @@ data class AppStrings(
 
     // Home screen
     val playNow: String,
+    val resumeLive: String,
+    val removeItem: String,
     val favorite: String,
     val favorited: String,
     val liveChannels: String,
@@ -45,6 +47,9 @@ data class AppStrings(
     val epgUnavailable: String,
     val refreshEpg: String,
     val liveBadge: String,
+    val channelsHeader: String,
+    val pressOkFullscreen: String,
+    val exitPlayer: String,
 
     // Series details
     val season: String,
@@ -132,7 +137,8 @@ data class AppStrings(
     val aspectFit: String,
     val aspectZoom: String,
     val aspectFill: String,
-    val aspectWidth: String
+    val aspectWidth: String,
+    val scrubHint: String
 )
 
 val StringsEs = AppStrings(
@@ -154,6 +160,8 @@ val StringsEs = AppStrings(
     loadMore = "Cargar más",
 
     playNow = "Reproducir",
+    resumeLive = "Volver al canal",
+    removeItem = "Quitar",
     favorite = "Favorito",
     favorited = "En favoritos",
     liveChannels = "En vivo",
@@ -174,6 +182,9 @@ val StringsEs = AppStrings(
     epgUnavailable = "Sin programación disponible",
     refreshEpg = "Actualizar EPG",
     liveBadge = "EN VIVO",
+    channelsHeader = "Canales",
+    pressOkFullscreen = "OK • Pantalla completa",
+    exitPlayer = "Salir del reproductor",
 
     season = "Temporada",
     episode = "Episodio",
@@ -256,7 +267,8 @@ val StringsEs = AppStrings(
     aspectFit = "Ajustar",
     aspectZoom = "Zoom",
     aspectFill = "Estirar",
-    aspectWidth = "Ancho"
+    aspectWidth = "Ancho",
+    scrubHint = "◀ ▶ Adelantar / Retroceder"
 )
 
 val StringsEn = AppStrings(
@@ -278,6 +290,8 @@ val StringsEn = AppStrings(
     loadMore = "Load More",
 
     playNow = "Play Now",
+    resumeLive = "Resume Live",
+    removeItem = "Remove",
     favorite = "Favorite",
     favorited = "Favorited",
     liveChannels = "Live TV",
@@ -298,6 +312,9 @@ val StringsEn = AppStrings(
     epgUnavailable = "No program guide available",
     refreshEpg = "Refresh EPG",
     liveBadge = "LIVE",
+    channelsHeader = "Channels",
+    pressOkFullscreen = "OK • Fullscreen",
+    exitPlayer = "Exit Player",
 
     season = "Season",
     episode = "Episode",
@@ -380,7 +397,8 @@ val StringsEn = AppStrings(
     aspectFit = "Fit",
     aspectZoom = "Zoom",
     aspectFill = "Stretch",
-    aspectWidth = "Fit Width"
+    aspectWidth = "Fit Width",
+    scrubHint = "◀ ▶ Seek Forward / Back"
 )
 
 fun stringsFor(language: AppLanguage): AppStrings = when (language) {

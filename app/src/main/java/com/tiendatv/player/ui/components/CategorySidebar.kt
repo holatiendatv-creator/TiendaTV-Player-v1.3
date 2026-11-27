@@ -1,9 +1,10 @@
 package com.tiendatv.player.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -45,46 +46,61 @@ fun CategorySidebar(
 ) {
     val c = LocalTiendaColors.current
     val listState = rememberLazyListState()
+    val sidebarBg = if (c.isDark) Color(0xFF0E1117) else c.glassRail
 
-    Column(
+    Row(
         modifier = modifier
             .fillMaxHeight()
-            .width(210.dp)
-            .background(c.glassSurface)
-            .border(width = 1.dp, color = c.glassBorder)
-            .padding(top = 16.dp, bottom = 12.dp, start = 10.dp, end = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .width(206.dp)
+            .background(sidebarBg)
     ) {
-        Text(
-            text = strings.categoriesHeader,
-            color = c.textPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-
-        LazyColumn(
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-            contentPadding = PaddingValues(bottom = 16.dp),
-            modifier = Modifier.fillMaxHeight()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .padding(top = 18.dp, bottom = 12.dp, start = 10.dp, end = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item(key = "all_categories") {
-                CategorySidebarRow(
-                    label = strings.allCategories,
-                    selected = selectedCategoryId.isBlank(),
-                    onClick = { onSelectCategory("") }
-                )
-            }
-            items(categories, key = { it.uid }) { cat ->
-                CategorySidebarRow(
-                    label = cat.name,
-                    selected = cat.categoryId == selectedCategoryId,
-                    onClick = { onSelectCategory(cat.categoryId) }
-                )
+            Text(
+                text = strings.categoriesHeader.uppercase(),
+                color = c.textSecondary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 10.dp)
+            )
+
+            LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(bottom = 20.dp),
+                modifier = Modifier.fillMaxHeight()
+            ) {
+                item(key = "all_categories") {
+                    CategorySidebarRow(
+                        label = strings.allCategories,
+                        selected = selectedCategoryId.isBlank(),
+                        onClick = { onSelectCategory("") }
+                    )
+                }
+                items(categories, key = { it.uid }) { cat ->
+                    CategorySidebarRow(
+                        label = cat.name,
+                        selected = cat.categoryId == selectedCategoryId,
+                        onClick = { onSelectCategory(cat.categoryId) }
+                    )
+                }
             }
         }
+
+        // Subtle hairline divider matching the Dark Cinema obsidian palette
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(1.dp)
+                .background(c.glassBorder)
+        )
     }
 }
 
@@ -95,13 +111,15 @@ private fun CategorySidebarRow(
     onClick: () -> Unit
 ) {
     val c = LocalTiendaColors.current
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(10.dp)
     val bgColor by animateColorAsState(
         targetValue = if (selected) c.accentSoft else Color.Transparent,
+        animationSpec = tween(150),
         label = "catRowBg"
     )
     val textColor by animateColorAsState(
         targetValue = if (selected) c.accent else c.textSecondary,
+        animationSpec = tween(150),
         label = "catRowText"
     )
 
@@ -110,16 +128,11 @@ private fun CategorySidebarRow(
             .fillMaxWidth()
             .tvFocusable(
                 shape = shape,
-                focusScale = 1.025f,
+                focusScale = 1.015f,
                 onClick = onClick
             )
             .clip(shape)
             .background(bgColor)
-            .border(
-                width = 1.dp,
-                color = if (selected) c.accent.copy(alpha = 0.55f) else Color.Transparent,
-                shape = shape
-            )
             .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(9.dp)
@@ -128,7 +141,7 @@ private fun CategorySidebarRow(
             imageVector = if (selected) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
             contentDescription = null,
             tint = textColor,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(17.dp)
         )
         Text(
             text = label,

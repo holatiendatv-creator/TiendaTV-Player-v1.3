@@ -5,16 +5,24 @@ import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,7 +37,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.Audiotrack
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
@@ -47,6 +58,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,26 +69,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
+import com.tiendatv.player.data.local.CategoryEntity
+import com.tiendatv.player.data.local.EpgProgramEntity
+import com.tiendatv.player.data.local.MediaItemEntity
 import com.tiendatv.player.data.local.UserSettings
 import com.tiendatv.player.ui.components.tvFocusable
 import com.tiendatv.player.ui.i18n.AppStrings
@@ -91,6 +108,12 @@ fun PlayerScreen(
     epgNowTitle: String?,
     hasPrevChannel: Boolean,
     hasNextChannel: Boolean,
+    liveCategories: List<CategoryEntity> = emptyList(),
+    selectedLiveCategoryId: String = "",
+    liveChannels: List<MediaItemEntity> = emptyList(),
+    currentPrograms: Map<String, EpgProgramEntity> = emptyMap(),
+    onSelectLiveCategory: (String) -> Unit = {},
+    onSelectLiveChannel: (MediaItemEntity) -> Unit = {},
     onPrevChannel: () -> Unit,
     onNextChannel: () -> Unit,
     onSaveProgress: (positionMs: Long, durationMs: Long) -> Unit,
@@ -112,11 +135,14 @@ fun PlayerScreen(
     }
 
     val state by controller.uiState.collectAsState()
-    var controlsVisible by remember { mutableStateOf(true) }
+    var controlsVisible by remember { mutableStateOf(false) }
+    var showChannelOverlay by remember { mutableStateOf(false) }
+    var showZapBanner by remember { mutableStateOf(false) }
     var lastInteractionMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showAudioDialog by remember { mutableStateOf(false) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
     val playPauseFocus = remember { FocusRequester() }
+    val overlayFocus = remember { FocusRequester() }
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -139,20 +165,36 @@ fun PlayerScreen(
 
     LaunchedEffect(request) {
         controller.play(request)
-        controlsVisible = true
+        if (request.isLive) {
+            if (!showChannelOverlay) {
+                controlsVisible = false
+                showZapBanner = true
+            }
+        } else {
+            controlsVisible = true
+            showZapBanner = false
+        }
         lastInteractionMs = System.currentTimeMillis()
     }
 
-    // Auto-hide controls after 6 seconds of inactivity while playing
-    LaunchedEffect(controlsVisible, lastInteractionMs, state.isPlaying, showAudioDialog, showSubtitleDialog) {
-        if (controlsVisible && state.isPlaying && !showAudioDialog && !showSubtitleDialog) {
+    // Minimal 3-second Zap Info Banner auto-hide
+    LaunchedEffect(showZapBanner, request.uid) {
+        if (showZapBanner) {
+            delay(3_200L)
+            showZapBanner = false
+        }
+    }
+
+    // Auto-hide full HUD controls after 6 seconds of inactivity while playing
+    LaunchedEffect(controlsVisible, lastInteractionMs, state.isPlaying, showAudioDialog, showSubtitleDialog, showChannelOverlay) {
+        if (controlsVisible && state.isPlaying && !showAudioDialog && !showSubtitleDialog && !showChannelOverlay) {
             delay(6_000L)
             controlsVisible = false
         }
     }
 
     LaunchedEffect(controlsVisible) {
-        if (controlsVisible) {
+        if (controlsVisible && !showChannelOverlay) {
             try {
                 playPauseFocus.requestFocus()
             } catch (_: Exception) {
@@ -160,15 +202,37 @@ fun PlayerScreen(
         }
     }
 
+    LaunchedEffect(showChannelOverlay) {
+        if (showChannelOverlay) {
+            controlsVisible = false
+            showZapBanner = false
+            delay(80L)
+            try {
+                overlayFocus.requestFocus()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    // TiviMate-style Back behavior:
+    // 1st Back on Live TV opens the translucent channel browser overlay while video keeps playing!
+    // 2nd Back (or Back on VOD) exits the player.
     BackHandler {
         when {
             showAudioDialog -> showAudioDialog = false
             showSubtitleDialog -> showSubtitleDialog = false
+            showChannelOverlay -> onClose()
+            request.isLive && liveChannels.isNotEmpty() -> {
+                controlsVisible = false
+                showZapBanner = false
+                showChannelOverlay = true
+            }
             else -> onClose()
         }
     }
 
     fun pokeControls() {
+        showZapBanner = false
         controlsVisible = true
         lastInteractionMs = System.currentTimeMillis()
     }
@@ -179,37 +243,104 @@ fun PlayerScreen(
             .background(Color.Black)
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) {
-                    pokeControls()
-                    when (event.key) {
-                        Key.MediaPlayPause, Key.Spacebar -> {
-                            controller.togglePlayPause()
-                            true
+                    if (showChannelOverlay) {
+                        if (event.key == Key.DirectionRight && !controlsVisible) {
+                            // Allow normal D-pad navigation inside overlay; only handled by overlay items
+                            false
+                        } else {
+                            false
                         }
-                        Key.ChannelUp -> {
-                            if (request.isLive && hasNextChannel) {
-                                onNextChannel()
+                    } else {
+                        when (event.key) {
+                            Key.MediaPlayPause, Key.Spacebar -> {
+                                pokeControls()
+                                controller.togglePlayPause()
                                 true
-                            } else false
+                            }
+                            Key.ChannelUp -> {
+                                if (request.isLive && hasNextChannel) {
+                                    controlsVisible = false
+                                    showZapBanner = true
+                                    onNextChannel()
+                                    true
+                                } else false
+                            }
+                            Key.ChannelDown -> {
+                                if (request.isLive && hasPrevChannel) {
+                                    controlsVisible = false
+                                    showZapBanner = true
+                                    onPrevChannel()
+                                    true
+                                } else false
+                            }
+                            Key.DirectionUp -> {
+                                if (!controlsVisible && request.isLive && hasNextChannel) {
+                                    showZapBanner = true
+                                    onNextChannel()
+                                    true
+                                } else {
+                                    if (!controlsVisible) {
+                                        pokeControls()
+                                        true
+                                    } else {
+                                        lastInteractionMs = System.currentTimeMillis()
+                                        false
+                                    }
+                                }
+                            }
+                            Key.DirectionDown -> {
+                                if (!controlsVisible && request.isLive && hasPrevChannel) {
+                                    showZapBanner = true
+                                    onPrevChannel()
+                                    true
+                                } else {
+                                    if (!controlsVisible) {
+                                        pokeControls()
+                                        true
+                                    } else {
+                                        lastInteractionMs = System.currentTimeMillis()
+                                        false
+                                    }
+                                }
+                            }
+                            Key.DirectionLeft -> {
+                                if (!controlsVisible && request.isLive && liveChannels.isNotEmpty()) {
+                                    showZapBanner = false
+                                    showChannelOverlay = true
+                                    true
+                                } else if (!controlsVisible && !request.isLive) {
+                                    pokeControls()
+                                    controller.seekBy(-15_000L)
+                                    true
+                                } else {
+                                    lastInteractionMs = System.currentTimeMillis()
+                                    false
+                                }
+                            }
+                            Key.DirectionRight -> {
+                                if (!controlsVisible && !request.isLive) {
+                                    pokeControls()
+                                    controller.seekBy(15_000L)
+                                    true
+                                } else {
+                                    lastInteractionMs = System.currentTimeMillis()
+                                    false
+                                }
+                            }
+                            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                                if (!controlsVisible) {
+                                    pokeControls()
+                                    true
+                                } else {
+                                    lastInteractionMs = System.currentTimeMillis()
+                                    false
+                                }
+                            }
+                            else -> {
+                                if (controlsVisible) lastInteractionMs = System.currentTimeMillis()
+                                false
+                            }
                         }
-                        Key.ChannelDown -> {
-                            if (request.isLive && hasPrevChannel) {
-                                onPrevChannel()
-                                true
-                            } else false
-                        }
-                        Key.DirectionLeft -> {
-                            if (!controlsVisible && !request.isLive) {
-                                controller.seekBy(-10_000L)
-                                true
-                            } else false
-                        }
-                        Key.DirectionRight -> {
-                            if (!controlsVisible && !request.isLive) {
-                                controller.seekBy(10_000L)
-                                true
-                            } else false
-                        }
-                        else -> false
                     }
                 } else {
                     false
@@ -219,8 +350,15 @@ fun PlayerScreen(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
-                controlsVisible = !controlsVisible
-                if (controlsVisible) lastInteractionMs = System.currentTimeMillis()
+                if (showChannelOverlay) {
+                    showChannelOverlay = false
+                } else {
+                    controlsVisible = !controlsVisible
+                    if (controlsVisible) {
+                        showZapBanner = false
+                        lastInteractionMs = System.currentTimeMillis()
+                    }
+                }
             }
     ) {
         // Media3 Video Surface
@@ -247,14 +385,14 @@ fun PlayerScreen(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xCC0D111A))
+                    .background(Color(0xCC0B0D11))
                     .padding(horizontal = 28.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 CircularProgressIndicator(
-                    color = Color(0xFFFF7A45),
+                    color = Color(0xFFFF5A1F),
                     strokeWidth = 3.dp,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(34.dp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -276,7 +414,7 @@ fun PlayerScreen(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xE60D111A))
+                    .background(Color(0xE60B0D11))
                     .padding(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -310,11 +448,275 @@ fun PlayerScreen(
             }
         }
 
-        // Sleek tvOS-inspired HUD overlay
+        // Minimal 3-second Zen Zap Info Banner (when flipping live channels with Up/Down)
         AnimatedVisibility(
-            visible = controlsVisible && state.errorMessage == null,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            visible = showZapBanner && !controlsVisible && !showChannelOverlay && state.errorMessage == null,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(350)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp, vertical = 28.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xD90B0D11))
+                    .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(18.dp))
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFF5A1F))
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = request.title,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    val sub = epgNowTitle?.takeIf { it.isNotBlank() } ?: strings.liveBadge
+                    Text(
+                        text = sub,
+                        color = Color(0xCCFFFFFF),
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (state.videoInfoBadge.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x33FFFFFF))
+                            .padding(horizontal = 9.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = state.videoInfoBadge,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+
+        // TiviMate-Style Translucent Live Channels & Categories Overlay (Browse While Watching!)
+        AnimatedVisibility(
+            visible = showChannelOverlay && request.isLive,
+            enter = slideInHorizontally(tween(220)) { -it / 2 } + fadeIn(tween(200)),
+            exit = slideOutHorizontally(tween(180)) { -it / 2 } + fadeOut(tween(150)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xEC0B0D11),
+                                Color(0xCC0B0D11),
+                                Color(0x330B0D11),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            ) {
+                // Column 1: Categories
+                Column(
+                    modifier = Modifier
+                        .width(210.dp)
+                        .fillMaxHeight()
+                        .background(Color(0xD90B0D11))
+                        .padding(top = 20.dp, bottom = 16.dp, start = 12.dp, end = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = strings.categoriesHeader.uppercase(),
+                        color = Color(0xAAFFFFFF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.1.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        item(key = "overlay_all") {
+                            OverlayCategoryRow(
+                                label = strings.allCategories,
+                                selected = selectedLiveCategoryId.isBlank(),
+                                onClick = { onSelectLiveCategory("") }
+                            )
+                        }
+                        items(liveCategories, key = { it.uid }) { cat ->
+                            OverlayCategoryRow(
+                                label = cat.name,
+                                selected = cat.categoryId == selectedLiveCategoryId,
+                                onClick = { onSelectLiveCategory(cat.categoryId) }
+                            )
+                        }
+                    }
+
+                    PlayerActionPill(
+                        label = strings.exitPlayer,
+                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                        onClick = onClose
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(1.dp)
+                        .background(Color(0x26FFFFFF))
+                )
+
+                // Column 2: Channels
+                Column(
+                    modifier = Modifier
+                        .width(300.dp)
+                        .fillMaxHeight()
+                        .background(Color(0xBF0E1118))
+                        .padding(top = 20.dp, bottom = 16.dp, start = 10.dp, end = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = strings.channelsHeader.uppercase(),
+                            color = Color(0xAAFFFFFF),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.1.sp
+                        )
+                        Text(
+                            text = "${liveChannels.size}",
+                            color = Color(0x88FFFFFF),
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                        contentPadding = PaddingValues(bottom = 20.dp),
+                        modifier = Modifier.fillMaxHeight()
+                    ) {
+                        items(liveChannels, key = { it.uid }) { ch ->
+                            val isPlayingNow = ch.uid == request.uid
+                            val key = ch.epgChannelId.ifBlank { ch.streamId }
+                            val prog = currentPrograms[key]
+                            val shape = RoundedCornerShape(12.dp)
+                            val itemMod = if (isPlayingNow) {
+                                Modifier.focusRequester(overlayFocus)
+                            } else {
+                                Modifier
+                            }
+
+                            Row(
+                                modifier = itemMod
+                                    .fillMaxWidth()
+                                    .tvFocusable(
+                                        shape = shape,
+                                        focusScale = 1.02f,
+                                        focusBorderColor = Color(0xFFFF5A1F),
+                                        onClick = {
+                                            if (isPlayingNow) {
+                                                showChannelOverlay = false
+                                            } else {
+                                                onSelectLiveChannel(ch)
+                                            }
+                                        }
+                                    )
+                                    .clip(shape)
+                                    .background(
+                                        if (isPlayingNow) Color(0x44FF5A1F) else Color(0x18FFFFFF)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0x550B0D11)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (ch.logoUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = ch.logoUrl,
+                                            contentDescription = ch.name,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(3.dp)
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "${ch.channelNumber}",
+                                            color = Color(0xCCFFFFFF),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = ch.name,
+                                        color = Color.White,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = if (isPlayingNow) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = prog?.title ?: strings.epgUnavailable,
+                                        color = Color(0xAAFFFFFF),
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Transparent tap area on the right to return to fullscreen
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { showChannelOverlay = false }
+                )
+            }
+        }
+
+        // Sleek tvOS-inspired Full HUD Overlay
+        AnimatedVisibility(
+            visible = controlsVisible && !showChannelOverlay && state.errorMessage == null,
+            enter = fadeIn(tween(180)),
+            exit = fadeOut(tween(180)),
             modifier = Modifier.fillMaxSize()
         ) {
             Box(
@@ -326,7 +728,7 @@ fun PlayerScreen(
                                 Color(0xB3000000),
                                 Color.Transparent,
                                 Color.Transparent,
-                                Color(0xCC000000)
+                                Color(0xD9000000)
                             )
                         )
                     )
@@ -366,6 +768,17 @@ fun PlayerScreen(
                         }
                     }
                     if (request.isLive) {
+                        if (liveChannels.isNotEmpty()) {
+                            PlayerActionPill(
+                                label = strings.channelsHeader,
+                                icon = Icons.Rounded.LiveTv,
+                                onClick = {
+                                    controlsVisible = false
+                                    showChannelOverlay = true
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                        }
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
@@ -398,45 +811,23 @@ fun PlayerScreen(
                     }
                 }
 
-                // Bottom Controls: Seekbar (VOD) + Transport + Audio/Subtitles/Aspect
+                // Bottom Controls: D-pad Focusable Seekbar (VOD) + Transport + Audio/Subtitles/Aspect
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                 ) {
                     if (!request.isLive && state.durationMs > 0L) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = formatDuration(state.currentPositionMs),
-                                color = Color.White,
-                                fontSize = 12.sp
-                            )
-                            Slider(
-                                value = state.currentPositionMs.toFloat(),
-                                onValueChange = {
-                                    pokeControls()
-                                    controller.seekTo(it.toLong())
-                                },
-                                valueRange = 0f..state.durationMs.toFloat().coerceAtLeast(1f),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = Color(0xFFFF7A45),
-                                    activeTrackColor = Color(0xFFFF7A45),
-                                    inactiveTrackColor = Color(0x55FFFFFF)
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 12.dp)
-                            )
-                            Text(
-                                text = formatDuration(state.durationMs),
-                                color = Color(0xCCFFFFFF),
-                                fontSize = 12.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        TvTimelineScrubber(
+                            positionMs = state.currentPositionMs,
+                            durationMs = state.durationMs,
+                            scrubHint = strings.scrubHint,
+                            onSeekTo = { targetMs ->
+                                pokeControls()
+                                controller.seekTo(targetMs)
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
 
                     Row(
@@ -568,6 +959,155 @@ fun PlayerScreen(
     }
 }
 
+/**
+ * D-pad focusable + touch-friendly movie/series timeline scrubber.
+ * Move D-pad onto the bar and press/hold Left or Right to scrub smoothly forward or backward.
+ */
+@Composable
+private fun TvTimelineScrubber(
+    positionMs: Long,
+    durationMs: Long,
+    scrubHint: String,
+    onSeekTo: (Long) -> Unit
+) {
+    var isBarFocused by remember { mutableStateOf(false) }
+    var repeatStreak by remember { mutableIntStateOf(0) }
+    var lastKeyMs by remember { mutableLongStateOf(0L) }
+    val barPadding by animateDpAsState(
+        targetValue = if (isBarFocused) 10.dp else 4.dp,
+        label = "scrubberPad"
+    )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (isBarFocused) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = scrubHint,
+                    color = Color(0xFFFF7A45),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "${formatDuration(positionMs)} / ${formatDuration(durationMs)}",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isBarFocused) Color(0x44FF5A1F) else Color.Transparent)
+                .border(
+                    width = if (isBarFocused) 2.dp else 0.dp,
+                    color = if (isBarFocused) Color(0xFFFF5A1F) else Color.Transparent,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .onFocusChanged {
+                    isBarFocused = it.isFocused
+                    if (!it.isFocused) repeatStreak = 0
+                }
+                .onKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown &&
+                        (event.key == Key.DirectionLeft || event.key == Key.DirectionRight)
+                    ) {
+                        val now = System.currentTimeMillis()
+                        repeatStreak = if (now - lastKeyMs < 450L) (repeatStreak + 1).coerceAtMost(30) else 1
+                        lastKeyMs = now
+                        val stepMs = when {
+                            repeatStreak >= 12 -> 60_000L
+                            repeatStreak >= 5 -> 30_000L
+                            else -> 15_000L
+                        }
+                        val delta = if (event.key == Key.DirectionRight) stepMs else -stepMs
+                        val next = (positionMs + delta).coerceIn(0L, durationMs)
+                        onSeekTo(next)
+                        true
+                    } else {
+                        false
+                    }
+                }
+                .focusable()
+                .padding(horizontal = 10.dp, vertical = barPadding),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = formatDuration(positionMs),
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = if (isBarFocused) FontWeight.Bold else FontWeight.Normal
+            )
+            Slider(
+                value = positionMs.toFloat().coerceIn(0f, durationMs.toFloat().coerceAtLeast(1f)),
+                onValueChange = { onSeekTo(it.toLong()) },
+                valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFFFF5A1F),
+                    activeTrackColor = Color(0xFFFF5A1F),
+                    inactiveTrackColor = Color(0x55FFFFFF)
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            )
+            Text(
+                text = formatDuration(durationMs),
+                color = Color(0xCCFFFFFF),
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun OverlayCategoryRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .tvFocusable(
+                shape = shape,
+                focusScale = 1.02f,
+                focusBorderColor = Color(0xFFFF5A1F),
+                onClick = onClick
+            )
+            .clip(shape)
+            .background(if (selected) Color(0x44FF5A1F) else Color.Transparent)
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = if (selected) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
+            contentDescription = null,
+            tint = if (selected) Color(0xFFFF7A45) else Color(0xAAFFFFFF),
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = label,
+            color = if (selected) Color.White else Color(0xCCFFFFFF),
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
 @Composable
 private fun PlayerIconButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -632,67 +1172,47 @@ private fun TrackPickerOverlay(
     onSelect: (TrackOption?) -> Unit,
     onDismiss: () -> Unit
 ) {
-    // v1.9: a real Dialog, not a Box drawn over the player. Before, focus
-    // stayed on the Play/Pause button behind the popup, so a Firestick
-    // remote could see the list but never reach it — Enter re-triggered
-    // whatever was underneath. Dialog traps focus inside, and the first
-    // row gets focus on open so D-pad Down / Enter works immediately.
-    val firstRowFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        try {
-            firstRowFocus.requestFocus()
-        } catch (_: Exception) {
-        }
-    }
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x99000000))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0x99000000))
-                .clickable(onClick = onDismiss),
-            contentAlignment = Alignment.Center
+                .width(360.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xEE111827))
+                .padding(20.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .width(360.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xEE1C1C1E))
-                    .padding(20.dp)
-            ) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                if (tracks.isEmpty() && !includeOffOption) {
-                    Text(text = emptyLabel, color = Color(0xAAFFFFFF), fontSize = 14.sp)
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (includeOffOption) {
-                            item {
-                                val noneSelected = tracks.none { it.isSelected }
-                                TrackRowItem(
-                                    label = offLabel,
-                                    selected = noneSelected,
-                                    onClick = { onSelect(null) },
-                                    focusRequester = firstRowFocus
-                                )
-                            }
-                        }
-                        items(tracks, key = { it.id }) { track ->
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            if (tracks.isEmpty() && !includeOffOption) {
+                Text(text = emptyLabel, color = Color(0xAAFFFFFF), fontSize = 14.sp)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (includeOffOption) {
+                        item {
+                            val noneSelected = tracks.none { it.isSelected }
                             TrackRowItem(
-                                label = track.label,
-                                selected = track.isSelected,
-                                onClick = { onSelect(track) },
-                                // Focus the selected row if there is one, else the first row.
-                                focusRequester = if (track.isSelected || (!includeOffOption && tracks.firstOrNull() == track)) firstRowFocus else null
+                                label = offLabel,
+                                selected = noneSelected,
+                                onClick = { onSelect(null) }
                             )
                         }
+                    }
+                    items(tracks, key = { it.id }) { track ->
+                        TrackRowItem(
+                            label = track.label,
+                            selected = track.isSelected,
+                            onClick = { onSelect(track) }
+                        )
                     }
                 }
             }
@@ -701,19 +1221,13 @@ private fun TrackPickerOverlay(
 }
 
 @Composable
-private fun TrackRowItem(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    focusRequester: FocusRequester? = null
-) {
+private fun TrackRowItem(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .tvFocusable(
                 shape = RoundedCornerShape(12.dp),
-                focusBorderColor = Color.White,
+                focusBorderColor = Color(0xFFFF7A45),
                 onClick = onClick
             )
             .clip(RoundedCornerShape(12.dp))

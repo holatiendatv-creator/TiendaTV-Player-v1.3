@@ -45,10 +45,6 @@ data class CatalogSliceState(
 data class MainUiState(
     val settings: UserSettings = UserSettings(),
     val profiles: List<ProfileEntity> = emptyList(),
-    // True once observeActiveProfile() has emitted its FIRST value (even null).
-    // False = "not loaded yet" — must not be confused with "no profile".
-    // MainActivity shows a splash while this is false, never the login screen.
-    val isProfileLoaded: Boolean = false,
     val activeProfile: ProfileEntity? = null,
     val selectedTab: NavTab = NavTab.HOME,
     val showAddProfileModal: Boolean = false,
@@ -127,7 +123,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             repo.observeActiveProfile().collectLatest { profile ->
-                _state.update { it.copy(activeProfile = profile, isProfileLoaded = true) }
+                _state.update { it.copy(activeProfile = profile) }
                 profileObserversJob?.cancel()
                 if (profile != null) {
                     attachProfileObservers(profile)
@@ -299,12 +295,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun focusLiveChannel(channel: MediaItemEntity) {
         val profile = _state.value.activeProfile ?: return
         _state.update { it.copy(focusedLiveChannel = channel) }
-        // v1.9: debounce 150ms — scrolling fast with the D-pad used to fire
-        // a (sometimes network) EPG fetch per channel, each recomposing the
-        // whole EPG panel. Fetch only after focus settles.
         epgFetchJob?.cancel()
         epgFetchJob = viewModelScope.launch {
-            delay(150L)
             val programs = repo.getEpgForChannel(profile, channel)
             _state.update { it.copy(focusedChannelEpg = programs) }
         }
@@ -575,6 +567,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun clearHistory() {
         val profile = _state.value.activeProfile ?: return
         viewModelScope.launch { repo.clearHistory(profile.id) }
+    }
+    fun removeHistoryItem(uid: String) {
+        viewModelScope.launch { repo.removeHistoryItem(uid) }
     }
 
     private fun prioritizeCategoriesByLanguage(

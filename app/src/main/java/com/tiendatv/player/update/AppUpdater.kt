@@ -2,6 +2,7 @@ package com.tiendatv.player.update
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -118,6 +119,7 @@ object AppUpdater {
         }
     }
 
+    @Suppress("DEPRECATION")
     fun installApk(context: Context, apkFile: File): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             !context.packageManager.canRequestPackageInstalls()
@@ -135,12 +137,44 @@ object AppUpdater {
             "${context.packageName}.fileprovider",
             apkFile
         )
-        val installIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
+
+        val mime = "application/vnd.android.package-archive"
+        val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+            setDataAndType(uri, mime)
+            putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+            putExtra(Intent.EXTRA_RETURN_RESULT, false)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-        context.startActivity(installIntent)
+
+        val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mime)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+
+        val chosen = if (installIntent.resolveActivity(context.packageManager) != null) {
+            installIntent
+        } else {
+            viewIntent
+        }
+
+        // Explicitly grant URI read permissions to every package installer handler (required by FireOS)
+        val handlers = context.packageManager.queryIntentActivities(
+            chosen,
+            PackageManager.MATCH_DEFAULT_ONLY
+        )
+        for (info in handlers) {
+            context.grantUriPermission(
+                info.activityInfo.packageName,
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+
+        context.startActivity(chosen)
         return true
     }
 }

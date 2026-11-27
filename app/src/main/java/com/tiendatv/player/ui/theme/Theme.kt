@@ -1,7 +1,6 @@
 package com.tiendatv.player.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -9,21 +8,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-
-// v1.9 crisp type scale — the only sizes in the app. Title 28 / body 13 /
-// section 13 uppercase / small 11. No more 14.5 / 17 / 19 / 22 / 30sp scatter.
-val TiendaTypography = Typography(
-    headlineLarge = TextStyle(fontSize = 28.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp),
-    titleLarge = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-    bodyLarge = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Normal),
-    bodyMedium = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Normal),
-    labelLarge = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.0.sp),
-    labelSmall = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-)
 
 @Immutable
 data class TiendaGlassColors(
@@ -75,29 +59,27 @@ val LightGlassPalette = TiendaGlassColors(
 )
 
 /**
- * v1.9 Dark Cinema: pure black canvas, opaque iOS-style surfaces (#1C1C1E),
- * white 70% secondary text, thin white focus ring. Orange is kept for
- * Play / progress only — it is no longer the focus ring, rail tint, and
- * badge colour all at once.
+ * Default Dark Cinema Mode matching tiendatv.net: deep obsidian canvas (#0B0D11),
+ * charcoal glass surfaces, TiendaTV orange-coral (#FF5A1F), and warm amber-gold (#F5B041) badges.
  */
 val DarkCinemaPalette = TiendaGlassColors(
     isDark = true,
-    canvasTop = Color(0xFF000000),
-    canvasBottom = Color(0xFF000000),
-    ambientGlowA = Color(0x00000000),
-    ambientGlowB = Color(0x00000000),
-    glassSurface = Color(0xFF1C1C1E),
-    glassSurfaceElevated = Color(0xFF2C2C2E),
-    glassRail = Color(0xFF000000),
-    glassBorder = Color(0x1FFFFFFF),
-    focusRing = Color(0xFFFFFFFF),
+    canvasTop = Color(0xFF0B0D11),
+    canvasBottom = Color(0xFF11141C),
+    ambientGlowA = Color(0x2BFF5A1F),
+    ambientGlowB = Color(0x1FF5B041),
+    glassSurface = Color(0xCC151820),
+    glassSurfaceElevated = Color(0xE61B1F2A),
+    glassRail = Color(0xE60F1218),
+    glassBorder = Color(0x22FFFFFF),
+    focusRing = Color(0xFFFF5A1F),
     accent = Color(0xFFFF5A1F),
     accentLight = Color(0xFFFF7A45),
     accentSoft = Color(0x2EFF5A1F),
     badgeGold = Color(0xFFF5B041),
     textPrimary = Color(0xFFFFFFFF),
-    textSecondary = Color(0xB3FFFFFF),
-    pillBackground = Color(0xFF1C1C1E),
+    textSecondary = Color(0xFF9CA3AF),
+    pillBackground = Color(0xCC1A1E28),
     danger = Color(0xFFF87171),
     success = Color(0xFF4ADE80)
 )
@@ -133,7 +115,6 @@ fun TiendaTvTheme(
     CompositionLocalProvider(LocalTiendaColors provides palette) {
         MaterialTheme(
             colorScheme = materialScheme,
-            typography = TiendaTypography,
             content = content
         )
     }
