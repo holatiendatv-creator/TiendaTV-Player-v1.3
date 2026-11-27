@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tiendatv.player.data.local.MediaType
 import com.tiendatv.player.player.PlayerScreen
+import com.tiendatv.player.player.TiendaPlayerController
 import com.tiendatv.player.ui.components.FrostedCanvasBackground
 import com.tiendatv.player.ui.components.NavTab
 import com.tiendatv.player.ui.components.PinEntryDialog
@@ -55,6 +56,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             TiendaTvRoot(viewModel = viewModel)
         }
+    }
+
+    override fun onDestroy() {
+        TiendaPlayerController.releaseAnyActive()
+        super.onDestroy()
     }
 }
 

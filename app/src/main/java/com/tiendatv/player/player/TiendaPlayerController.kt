@@ -31,6 +31,7 @@ import java.util.Locale
 
 /**
  * Wraps AndroidX Media3 ExoPlayer with:
+ * - Single-instance global audio guard (prevents any overlapping/background zombie streams)
  * - Hardware-accelerated decoding + automatic software decoder fallback
  * - Configurable buffer presets (Low / Balanced / High / Max)
  * - Automatic preferred audio track selection (Spanish default vs. English mode)
@@ -48,6 +49,17 @@ class TiendaPlayerController(
     initialAspectMode: VideoAspectMode,
     private val onProgressPersist: (positionMs: Long, durationMs: Long) -> Unit
 ) {
+    companion object {
+        @Volatile
+        private var activeController: TiendaPlayerController? = null
+
+        @Synchronized
+        fun releaseAnyActive() {
+            activeController?.release()
+            activeController = null
+        }
+    }
+
     private val _uiState = MutableStateFlow(
         PlayerUiState(
             aspectMode = initialAspectMode,
@@ -66,12 +78,17 @@ class TiendaPlayerController(
     private var lastSavedAtMs = 0L
     private var appliedAutoAudioForCurrentItem = false
 
+    @Volatile
+    private var isReleased = false
+
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isReleased) return
             _uiState.update { it.copy(isPlaying = isPlaying) }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            if (isReleased) return
             when (playbackState) {
                 Player.STATE_BUFFERING -> {
                     _uiState.update { it.copy(isBuffering = true) }
@@ -104,6 +121,7 @@ class TiendaPlayerController(
         }
 
         override fun onTracksChanged(tracks: Tracks) {
+            if (isReleased) return
             if (!appliedAutoAudioForCurrentItem) {
                 applyLabelFallbackAudioPreference(tracks)
             }
@@ -111,6 +129,7 @@ class TiendaPlayerController(
         }
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
+            if (isReleased) return
             if (videoSize.width > 0 && videoSize.height > 0) {
                 val badge = when {
                     videoSize.height >= 2160 -> "4K UHD"
@@ -123,11 +142,18 @@ class TiendaPlayerController(
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            if (isReleased) return
             scheduleReconnect(error.errorCodeName + ": " + (error.localizedMessage ?: "Playback error"))
         }
     }
 
     init {
+        // Kill any previous player instance before creating a new one
+        synchronized(Companion) {
+            activeController?.takeIf { it !== this }?.release()
+            activeController = this
+        }
+
         val preferredAudioCodes = when (preferredLanguage) {
             AppLanguage.EN -> arrayOf("en", "eng", "en-US", "en-GB")
             AppLanguage.ES -> arrayOf("es", "spa", "es-419", "es-MX", "es-ES")
@@ -178,6 +204,7 @@ class TiendaPlayerController(
      * automatically picks the matching track if ExoPlayer's ISO selector couldn't match it.
      */
     private fun applyLabelFallbackAudioPreference(tracks: Tracks) {
+        if (isReleased) return
         val keywords = when (preferredLanguage) {
             AppLanguage.EN -> listOf("en", "eng", "english", "inglés", "ingles", "usa", "original")
             AppLanguage.ES -> listOf("es", "spa", "español", "espanol", "latino", "lat", "castellano", "spanish")
@@ -206,14 +233,20 @@ class TiendaPlayerController(
     }
 
     fun play(request: PlaybackRequest) {
+        if (isReleased) return
         currentRequest = request
         retryCount = 0
         appliedAutoAudioForCurrentItem = false
         retryJob?.cancel()
+
+        // Cleanly stop previous stream before loading the new one
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
         exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
             .buildUpon()
             .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
             .build()
+
         _uiState.update {
             it.copy(
                 isBuffering = true,
@@ -236,13 +269,24 @@ class TiendaPlayerController(
         exoPlayer.playWhenReady = true
     }
 
+    fun pauseForBackground() {
+        if (isReleased) return
+        retryJob?.cancel()
+        if (exoPlayer.isPlaying) {
+            persistProgressNow()
+            exoPlayer.pause()
+        }
+    }
+
     fun retryManual() {
+        if (isReleased) return
         val req = currentRequest ?: return
         val resumeAt = if (req.isLive) 0L else exoPlayer.currentPosition.coerceAtLeast(req.resumePositionMs)
         play(req.copy(resumePositionMs = resumeAt))
     }
 
     private fun scheduleReconnect(reason: String) {
+        if (isReleased) return
         val req = currentRequest ?: return
         if (retryCount >= AppConfig.MAX_PLAYER_RETRIES) {
             _uiState.update {
@@ -273,6 +317,7 @@ class TiendaPlayerController(
         retryJob?.cancel()
         retryJob = scope.launch {
             delay(delayMs)
+            if (isReleased) return@launch
             val resumeAt = if (req.isLive) 0L else exoPlayer.currentPosition.coerceAtLeast(req.resumePositionMs)
             val mediaItem = MediaItem.Builder().setUri(req.streamUrl).build()
             exoPlayer.setMediaItem(mediaItem)
@@ -285,6 +330,7 @@ class TiendaPlayerController(
     }
 
     fun togglePlayPause() {
+        if (isReleased) return
         if (exoPlayer.isPlaying) {
             exoPlayer.pause()
             persistProgressNow()
@@ -294,7 +340,7 @@ class TiendaPlayerController(
     }
 
     fun seekBy(deltaMs: Long) {
-        if (currentRequest?.isLive == true) return
+        if (isReleased || currentRequest?.isLive == true) return
         val duration = exoPlayer.duration.coerceAtLeast(0L)
         val target = (exoPlayer.currentPosition + deltaMs).coerceIn(0L, duration.coerceAtLeast(1L))
         exoPlayer.seekTo(target)
@@ -302,7 +348,7 @@ class TiendaPlayerController(
     }
 
     fun seekTo(positionMs: Long) {
-        if (currentRequest?.isLive == true) return
+        if (isReleased || currentRequest?.isLive == true) return
         val duration = exoPlayer.duration.coerceAtLeast(0L)
         val target = positionMs.coerceIn(0L, duration.coerceAtLeast(1L))
         exoPlayer.seekTo(target)
@@ -316,6 +362,7 @@ class TiendaPlayerController(
     }
 
     fun selectAudioTrack(option: TrackOption) {
+        if (isReleased) return
         val group = option.trackGroup ?: return
         val override = TrackSelectionOverride(group, option.trackIndex)
         exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
@@ -326,6 +373,7 @@ class TiendaPlayerController(
     }
 
     fun selectSubtitleTrack(option: TrackOption?) {
+        if (isReleased) return
         if (option == null || option.trackGroup == null) {
             exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
                 .buildUpon()
@@ -344,6 +392,7 @@ class TiendaPlayerController(
     }
 
     private fun refreshTracks(tracks: Tracks) {
+        if (isReleased) return
         val audioList = mutableListOf<TrackOption>()
         val subtitleList = mutableListOf<TrackOption>()
 
@@ -396,7 +445,7 @@ class TiendaPlayerController(
     private fun startPositionTicker() {
         tickerJob?.cancel()
         tickerJob = scope.launch {
-            while (true) {
+            while (!isReleased) {
                 val pos = exoPlayer.currentPosition.coerceAtLeast(0L)
                 val dur = exoPlayer.duration.coerceAtLeast(0L)
                 _uiState.update {
@@ -413,16 +462,30 @@ class TiendaPlayerController(
     }
 
     fun persistProgressNow() {
+        if (isReleased) return
         val pos = exoPlayer.currentPosition.coerceAtLeast(0L)
         val dur = exoPlayer.duration.coerceAtLeast(0L)
         onProgressPersist(pos, dur)
     }
 
     fun release() {
+        if (isReleased) return
         persistProgressNow()
+        isReleased = true
         retryJob?.cancel()
         tickerJob?.cancel()
-        exoPlayer.removeListener(playerListener)
-        exoPlayer.release()
+        try {
+            exoPlayer.removeListener(playerListener)
+            exoPlayer.playWhenReady = false
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+            exoPlayer.release()
+        } catch (_: Exception) {
+        }
+        synchronized(Companion) {
+            if (activeController === this) {
+                activeController = null
+            }
+        }
     }
 }

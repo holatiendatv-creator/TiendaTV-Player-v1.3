@@ -1,29 +1,22 @@
-name: Build TiendaTV Player APK
+name: Build & Publish TiendaTV Player APK
 
 on:
   push:
     branches: [ main, master ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
     inputs:
-      build_type:
-        description: 'Build variant to compile'
-        required: true
-        default: 'both'
-        type: choice
-        options:
-          - both
-          - debug
-          - release
+      build_debug:
+        description: 'Also build Debug APK'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
 jobs:
   build-apk:
-    name: Compile Android TV & Mobile APK
+    name: Build & Publish TiendaTV-latest.apk
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -50,18 +43,11 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 --decode > app/release.keystore
             echo "has_keystore=true" >> "$GITHUB_OUTPUT"
-            echo "Release keystore decoded successfully."
           else
             echo "has_keystore=false" >> "$GITHUB_OUTPUT"
-            echo "No release keystore secret found; release APK will use debug signing for direct Firestick/Android sideloading."
           fi
 
-      - name: Build Debug APK
-        if: ${{ github.event.inputs.build_type != 'release' }}
-        run: gradle assembleDebug --stacktrace --no-daemon
-
       - name: Build Release APK
-        if: ${{ github.event.inputs.build_type != 'debug' }}
         env:
           SIGNING_STORE_FILE: ${{ steps.keystore.outputs.has_keystore == 'true' && 'release.keystore' || '' }}
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -69,30 +55,56 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle assembleRelease --stacktrace --no-daemon
 
-      - name: Prepare Downloadable APK Artifacts
+      - name: Build Debug APK (optional manual dispatch)
+        if: ${{ github.event.inputs.build_debug == 'true' }}
+        run: gradle assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare TiendaTV-latest.apk
         shell: bash
         run: |
           mkdir -p dist
-          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
-            cp app/build/outputs/apk/debug/app-debug.apk dist/TiendaTV-Player-v1.3-debug.apk
-          fi
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            cp app/build/outputs/apk/release/app-release.apk dist/TiendaTV-Player-v1.3-release.apk
-          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
-            cp app/build/outputs/apk/release/app-release-unsigned.apk dist/TiendaTV-Player-v1.3-release-unsigned.apk
+            cp app/build/outputs/apk/release/app-release.apk dist/TiendaTV-latest.apk
+          else
+            echo "ERROR: app-release.apk not found!"
+            exit 1
           fi
           ls -lh dist/
 
-      - name: Upload APK Artifacts
+      - name: Publish / Overwrite Permanent 'latest' GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest dist/TiendaTV-latest.apk --clobber
+          else
+            gh release create latest dist/TiendaTV-latest.apk \
+              --title "TiendaTV Player (Latest)" \
+              --notes "Auto-published permanent build for Firestick / Android TV Downloader." \
+              --latest
+          fi
+
+      - name: Mirror 'latest' Release to Public tiendatv Repo (if PUBLIC_RELEASE_TOKEN is set)
+        if: ${{ secrets.PUBLIC_RELEASE_TOKEN != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          PUBLIC_REPO: holatiendatv-creator/tiendatv
+        run: |
+          if gh release view latest --repo "$PUBLIC_REPO" >/dev/null 2>&1; then
+            gh release upload latest dist/TiendaTV-latest.apk --repo "$PUBLIC_REPO" --clobber
+          else
+            gh release create latest dist/TiendaTV-latest.apk \
+              --repo "$PUBLIC_REPO" \
+              --title "TiendaTV Player (Latest)" \
+              --notes "Auto-published permanent build for Firestick / Android TV Downloader." \
+              --latest
+          fi
+
+      - name: Upload Backup Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TiendaTV-Player-APK
-          path: dist/*.apk
-          retention-days: 30
-
-      - name: Create GitHub Release (on v* tag push)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*.apk
-          generate_release_notes: true
+          name: TiendaTV-latest-APK
+          path: dist/TiendaTV-latest.apk
+          retention-days: 14

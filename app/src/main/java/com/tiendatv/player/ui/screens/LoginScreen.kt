@@ -18,8 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Login
-import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -58,13 +59,8 @@ fun LoginScreen(
     onCancel: (() -> Unit)? = null
 ) {
     val c = LocalTiendaColors.current
-    var isXtreamTab by remember { mutableStateOf(true) }
-    var profileName by remember { mutableStateOf("TiendaTV") }
-    var serverUrl by remember { mutableStateOf(AppConfig.DEFAULT_SERVER_URL) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var m3uUrl by remember { mutableStateOf("") }
-    var epgUrl by remember { mutableStateOf("") }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = c.textPrimary,
@@ -84,29 +80,29 @@ fun LoginScreen(
     ) {
         GlassCard(
             modifier = Modifier
-                .width(620.dp)
+                .width(520.dp)
                 .verticalScroll(rememberScrollState()),
             elevated = true
         ) {
             Column(
                 modifier = Modifier.padding(28.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(48.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(c.accent),
+                            .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Tv,
-                            contentDescription = null,
-                            tint = if (c.isDark) Color(0xFF04101D) else Color.White,
+                            imageVector = Icons.Rounded.LiveTv,
+                            contentDescription = "TiendaTV",
+                            tint = Color.White,
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -118,85 +114,35 @@ fun LoginScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = strings.welcomeSubtitle,
+                            text = if (strings.navHome == "Inicio") {
+                                "Ingresa tu usuario y contraseña para comenzar."
+                            } else {
+                                "Sign in with your username and password."
+                            },
                             color = c.textSecondary,
                             fontSize = 13.sp
                         )
                     }
                 }
 
-                // Xtream / M3U tab switcher
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GlassPillButton(
-                        text = strings.xtreamTab,
-                        primary = isXtreamTab,
-                        onClick = { isXtreamTab = true }
-                    )
-                    GlassPillButton(
-                        text = strings.m3uTab,
-                        primary = !isXtreamTab,
-                        onClick = { isXtreamTab = false }
-                    )
-                }
-
                 OutlinedTextField(
-                    value = profileName,
-                    onValueChange = { profileName = it },
-                    label = { Text(strings.profileName) },
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text(strings.username) },
                     singleLine = true,
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                if (isXtreamTab) {
-                    OutlinedTextField(
-                        value = serverUrl,
-                        onValueChange = { serverUrl = it },
-                        label = { Text(strings.serverUrl) },
-                        singleLine = true,
-                        colors = fieldColors,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = username,
-                            onValueChange = { username = it },
-                            label = { Text(strings.username) },
-                            singleLine = true,
-                            colors = fieldColors,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text(strings.password) },
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            colors = fieldColors,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                } else {
-                    OutlinedTextField(
-                        value = m3uUrl,
-                        onValueChange = { m3uUrl = it },
-                        label = { Text(strings.playlistUrl) },
-                        singleLine = true,
-                        colors = fieldColors,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = epgUrl,
-                        onValueChange = { epgUrl = it },
-                        label = { Text(strings.epgUrlOptional) },
-                        singleLine = true,
-                        colors = fieldColors,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(strings.password) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 if (!errorMessage.isNullOrBlank()) {
                     Text(
@@ -229,11 +175,8 @@ fun LoginScreen(
                             icon = Icons.Rounded.Login,
                             primary = true,
                             onClick = {
-                                if (isXtreamTab) {
-                                    onAddXtream(profileName, serverUrl, username, password)
-                                } else {
-                                    onAddM3u(profileName, m3uUrl, epgUrl)
-                                }
+                                val label = username.trim().ifBlank { "TiendaTV" }
+                                onAddXtream(label, AppConfig.DEFAULT_SERVER_URL, username, password)
                             }
                         )
                         if (onCancel != null) {
@@ -275,11 +218,13 @@ fun LoginScreen(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
-                                Text(
-                                    text = "${prof.type} • ${prof.serverUrl}",
-                                    color = c.textSecondary,
-                                    fontSize = 12.sp
-                                )
+                                if (prof.expirationDate.isNotBlank()) {
+                                    Text(
+                                        text = "${strings.expiresLabel} ${prof.expirationDate}",
+                                        color = c.textSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                             if (prof.isActive) {
                                 Icon(

@@ -305,7 +305,7 @@ fun SettingsScreen(
                                     " • ${strings.expiresLabel} ${profile.expirationDate}"
                                 } else ""
                                 Text(
-                                    text = "${profile.type} • ${profile.serverUrl}$exp",
+                                    text = if (profile.expirationDate.isNotBlank()) "${strings.expiresLabel} ${profile.expirationDate}" else profile.username,
                                     color = c.textSecondary,
                                     fontSize = 12.sp
                                 )

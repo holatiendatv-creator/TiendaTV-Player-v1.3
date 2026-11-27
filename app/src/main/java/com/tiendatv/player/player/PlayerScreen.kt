@@ -65,6 +65,9 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -94,7 +97,7 @@ fun PlayerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val controller = remember(request.uid, settings.bufferPreset, settings.preferSoftwareDecoder, settings.language) {
+    val controller = remember(settings.bufferPreset, settings.preferSoftwareDecoder, settings.language) {
         TiendaPlayerController(
             context = context,
             scope = scope,
@@ -113,11 +116,20 @@ fun PlayerScreen(
     var showSubtitleDialog by remember { mutableStateOf(false) }
     val playPauseFocus = remember { FocusRequester() }
 
-    // Keep TV/phone screen awake during playback
-    DisposableEffect(context) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Keep screen awake, pause on Home/background, and ALWAYS release this controller on dispose
+    DisposableEffect(controller, lifecycleOwner) {
         val window = (context as? Activity)?.window
         window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                controller.pauseForBackground()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             controller.release()
         }

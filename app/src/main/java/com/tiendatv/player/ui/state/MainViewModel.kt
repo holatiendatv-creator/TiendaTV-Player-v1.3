@@ -20,6 +20,7 @@ import com.tiendatv.player.data.repository.SortMode
 import com.tiendatv.player.data.repository.SyncProgress
 import com.tiendatv.player.player.BufferPreset
 import com.tiendatv.player.player.PlaybackRequest
+import com.tiendatv.player.player.TiendaPlayerController
 import com.tiendatv.player.player.VideoAspectMode
 import com.tiendatv.player.ui.components.NavTab
 import kotlinx.coroutines.Job
@@ -195,7 +196,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openAddProfileModal(show: Boolean) {
-        _state.update { it.copy(showAddProfileModal = show, loginError = null) }
+        if (show) TiendaPlayerController.releaseAnyActive()
+        _state.update { it.copy(showAddProfileModal = show, activePlayback = if (show) null else it.activePlayback, loginError = null) }
     }
 
     fun addXtreamProfile(name: String, serverUrl: String, username: String, password: String) {
@@ -239,15 +241,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun switchProfile(profile: ProfileEntity) {
+        TiendaPlayerController.releaseAnyActive()
         viewModelScope.launch {
             repo.switchProfile(profile.id)
-            _state.update { it.copy(showAddProfileModal = false, selectedTab = NavTab.HOME) }
+            _state.update { it.copy(showAddProfileModal = false, activePlayback = null, selectedTab = NavTab.HOME) }
         }
     }
 
     fun deleteProfile(profile: ProfileEntity) {
+        TiendaPlayerController.releaseAnyActive()
         viewModelScope.launch {
             repo.deleteProfile(profile.id)
+            _state.update { it.copy(activePlayback = null) }
         }
     }
 
@@ -541,6 +546,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closePlayer() {
+        TiendaPlayerController.releaseAnyActive()
         _state.update { it.copy(activePlayback = null) }
     }
 
