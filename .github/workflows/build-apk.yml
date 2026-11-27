@@ -86,12 +86,15 @@ jobs:
           fi
 
       - name: Mirror 'latest' Release to Public tiendatv Repo (if PUBLIC_RELEASE_TOKEN is set)
-        if: ${{ secrets.PUBLIC_RELEASE_TOKEN != '' }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
           PUBLIC_REPO: holatiendatv-creator/tiendatv
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "PUBLIC_RELEASE_TOKEN not set; skipping mirror to $PUBLIC_REPO."
+            exit 0
+          fi
           if gh release view latest --repo "$PUBLIC_REPO" >/dev/null 2>&1; then
             gh release upload latest dist/TiendaTV-latest.apk --repo "$PUBLIC_REPO" --clobber
           else
