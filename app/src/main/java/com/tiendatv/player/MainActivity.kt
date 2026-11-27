@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import android.app.Activity
 import androidx.activity.viewModels
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,16 +15,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
@@ -117,23 +129,23 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                     } else null
                 )
             } else {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Left tvOS-inspired frosted-glass navigation rail
-                    TiendaNavigationRail(
-                        selectedTab = state.selectedTab,
-                        strings = strings,
-                        onSelectTab = { viewModel.selectTab(it) }
+                val activity = LocalContext.current as? Activity
+                if (state.syncProgress.isSyncing) {
+                    CleanFullScreenSync(
+                        stage = state.syncProgress.stage,
+                        progress = state.syncProgress.progressFraction,
+                        title = strings.syncingCatalog
                     )
-
-                    // Main content stage
-                    Column(modifier = Modifier.weight(1f).fillMaxSize()) {
-                        if (state.syncProgress.isSyncing) {
-                            SyncProgressBanner(
-                                label = "${strings.syncingCatalog} (${state.syncProgress.stage})",
-                                progress = state.syncProgress.progressFraction
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        if (state.selectedTab != NavTab.HOME || state.activeSeries != null) {
+                            TiendaNavigationRail(
+                                selectedTab = state.selectedTab,
+                                strings = strings,
+                                onSelectTab = { viewModel.selectTab(it) }
                             )
                         }
 
@@ -149,22 +161,29 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                     onBack = { viewModel.closeSeriesDetail() }
                                 )
                             } else {
-                                when (state.selectedTab) {
-                                    NavTab.HOME -> HomeScreen(
-                                        counts = state.counts,
-                                        heroItem = state.heroItem,
-                                        continueWatching = state.continueWatching,
-                                        recentlyWatched = state.recentlyWatched,
-                                        favorites = state.favoriteItems,
-                                        featuredMovies = state.featuredMovies,
-                                        featuredSeries = state.featuredSeries,
-                                        favoriteUids = state.favoriteUids,
-                                        strings = strings,
-                                        onNavigateTab = { viewModel.selectTab(it) },
-                                        onOpenMedia = { viewModel.openMedia(it) },
-                                        onResumeHistory = { viewModel.resumeHistory(it) },
-                                        onToggleFavorite = { viewModel.toggleFavorite(it) }
-                                    )
+                                Crossfade(
+                                    targetState = state.selectedTab,
+                                    animationSpec = tween(durationMillis = 240),
+                                    label = "tabCrossfade"
+                                ) { tab ->
+                                    when (tab) {
+                                        NavTab.HOME -> HomeScreen(
+                                            counts = state.counts,
+                                            heroItem = state.heroItem,
+                                            continueWatching = state.continueWatching,
+                                            recentlyWatched = state.recentlyWatched,
+                                            favorites = state.favoriteItems,
+                                            featuredMovies = state.featuredMovies,
+                                            featuredSeries = state.featuredSeries,
+                                            favoriteUids = state.favoriteUids,
+                                            strings = strings,
+                                            onNavigateTab = { viewModel.selectTab(it) },
+                                            onOpenMedia = { viewModel.openMedia(it) },
+                                            onResumeHistory = { viewModel.resumeHistory(it) },
+                                            onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                            onReloadCatalog = { viewModel.syncActiveProfile() },
+                                            onExitApp = { activity?.finish() }
+                                        )
 
                                     NavTab.LIVE -> LiveTvScreen(
                                         categories = state.liveSlice.categories,
@@ -256,7 +275,8 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                         onSwitchProfile = { viewModel.switchProfile(it) },
                                         onDeleteProfile = { viewModel.deleteProfile(it) },
                                         onOpenAddProfile = { viewModel.openAddProfileModal(true) }
-                                    )
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -278,30 +298,58 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
 }
 
 @Composable
-private fun SyncProgressBanner(label: String, progress: Float) {
+private fun CleanFullScreenSync(stage: String, progress: Float, title: String) {
     val c = LocalTiendaColors.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp, end = 20.dp, start = 8.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(c.glassSurfaceElevated)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+    val stageLabel = when (stage) {
+        "LIVE" -> "TV en vivo"
+        "MOVIE" -> "Películas"
+        "SERIES" -> "Series"
+        else -> stage
+    }
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = label,
-            color = c.textPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        LinearProgressIndicator(
-            progress = { progress.coerceIn(0f, 1f) },
-            color = c.accent,
-            trackColor = c.glassBorder,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(4.dp))
-        )
+        Column(
+            modifier = Modifier.width(420.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.LiveTv,
+                    contentDescription = "TiendaTV",
+                    tint = Color.White,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+            Text(
+                text = "TiendaTV",
+                color = c.textPrimary,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = if (stageLabel.isNotBlank()) "$title • $stageLabel" else title,
+                color = c.textSecondary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            LinearProgressIndicator(
+                progress = { progress.coerceIn(0f, 1f) },
+                color = c.accent,
+                trackColor = c.glassBorder,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+            )
+        }
     }
 }

@@ -65,19 +65,18 @@ fun TiendaNavigationRail(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(104.dp)
+            .width(92.dp)
             .background(c.glassRail)
             .border(width = 1.dp, color = c.glassBorder)
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 18.dp, horizontal = 10.dp),
+            .padding(vertical = 12.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // TiendaTV rounded orange-coral brand emblem
         Box(
             modifier = Modifier
-                .size(46.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
             contentAlignment = Alignment.Center
         ) {
@@ -85,38 +84,38 @@ fun TiendaNavigationRail(
                 imageVector = Icons.Rounded.LiveTv,
                 contentDescription = "TiendaTV",
                 tint = Color.White,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         items.forEach { (tab, icon, label) ->
             val selected = tab == selectedTab
-            val shape = RoundedCornerShape(18.dp)
+            val shape = RoundedCornerShape(14.dp)
             Column(
                 modifier = Modifier
-                    .width(82.dp)
+                    .width(74.dp)
                     .tvFocusable(
                         shape = shape,
-                        focusScale = 1.05f,
+                        focusScale = 1.04f,
                         onClick = { onSelectTab(tab) }
                     )
                     .clip(shape)
                     .background(if (selected) c.accentSoft else Color.Transparent)
-                    .padding(vertical = 12.dp, horizontal = 6.dp),
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(5.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
                     tint = if (selected) c.accent else c.textSecondary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(21.dp)
                 )
                 Text(
                     text = label,
                     color = if (selected) c.accent else c.textSecondary,
-                    fontSize = 11.5.sp,
+                    fontSize = 11.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

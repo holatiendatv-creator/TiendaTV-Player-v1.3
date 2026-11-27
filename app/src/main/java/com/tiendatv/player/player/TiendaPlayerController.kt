@@ -403,7 +403,14 @@ class TiendaPlayerController(
                         val fmt = group.getTrackFormat(i)
                         val lang = fmt.language?.uppercase() ?: "UND"
                         val channels = if (fmt.channelCount > 2) " ${fmt.channelCount}.0" else ""
-                        val label = fmt.label?.takeIf { it.isNotBlank() } ?: "$lang$channels"
+                        val friendlyLang = when (lang.lowercase()) {
+                            "es", "spa", "es-419", "es-mx", "es-es" -> "Español"
+                            "en", "eng", "en-us", "en-gb" -> "English"
+                            "pt", "por", "pt-br" -> "Português"
+                            "fr", "fre", "fra" -> "Français"
+                            else -> lang
+                        }
+                        val label = fmt.label?.takeIf { it.isNotBlank() } ?: "$friendlyLang$channels"
                         audioList.add(
                             TrackOption(
                                 id = "a_${gIdx}_$i",

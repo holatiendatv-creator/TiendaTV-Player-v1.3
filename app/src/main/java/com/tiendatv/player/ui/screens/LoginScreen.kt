@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -33,9 +35,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +68,14 @@ fun LoginScreen(
     val c = LocalTiendaColors.current
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val passwordFocus = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    fun submitLogin() {
+        keyboardController?.hide()
+        val label = username.trim().ifBlank { "TiendaTV" }
+        onAddXtream(label, AppConfig.DEFAULT_SERVER_URL, username, password)
+    }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = c.textPrimary,
@@ -131,6 +146,13 @@ fun LoginScreen(
                     label = { Text(strings.username) },
                     singleLine = true,
                     colors = fieldColors,
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Next,
+                        autoCorrectEnabled = false
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { passwordFocus.requestFocus() }
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -141,7 +163,17 @@ fun LoginScreen(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                        autoCorrectEnabled = false
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { submitLogin() }
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(passwordFocus)
                 )
 
                 if (!errorMessage.isNullOrBlank()) {
@@ -174,10 +206,7 @@ fun LoginScreen(
                             text = strings.connectAndSync,
                             icon = Icons.Rounded.Login,
                             primary = true,
-                            onClick = {
-                                val label = username.trim().ifBlank { "TiendaTV" }
-                                onAddXtream(label, AppConfig.DEFAULT_SERVER_URL, username, password)
-                            }
+                            onClick = { submitLogin() }
                         )
                         if (onCancel != null) {
                             GlassPillButton(

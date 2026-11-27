@@ -11,6 +11,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +61,18 @@ fun CatalogGridScreen(
             onCycleSort = onCycleSort
         )
 
+        val gridState = rememberLazyGridState()
+        LaunchedEffect(gridState, hasMore, items.size) {
+            snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+                .collect { lastVisible ->
+                    if (hasMore && items.isNotEmpty() && lastVisible >= items.size - 18) {
+                        onLoadMore()
+                    }
+                }
+        }
+
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Adaptive(minSize = 180.dp),
             contentPadding = PaddingValues(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),

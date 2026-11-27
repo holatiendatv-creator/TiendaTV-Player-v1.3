@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
@@ -98,8 +101,19 @@ fun LiveTvScreen(
                 .fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Left: Channel list
+            // Left: Channel list with smooth auto-pagination
+            val listState = rememberLazyListState()
+            LaunchedEffect(listState, hasMore, channels.size) {
+                snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+                    .collect { lastVisible ->
+                        if (hasMore && channels.isNotEmpty() && lastVisible >= channels.size - 15) {
+                            onLoadMore()
+                        }
+                    }
+            }
+
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .weight(1.35f)
                     .fillMaxHeight(),

@@ -34,6 +34,8 @@ data class AppStrings(
     val featuredMovies: String,
     val featuredSeries: String,
     val emptyCatalogHint: String,
+    val reloadPortal: String,
+    val exitApp: String,
 
     // Live TV & EPG
     val epgGuide: String,
@@ -151,6 +153,8 @@ val StringsEs = AppStrings(
     featuredMovies = "Películas destacadas",
     featuredSeries = "Series destacadas",
     emptyCatalogHint = "Conecta tu lista Xtream Codes o M3U para cargar canales, películas y series.",
+    reloadPortal = "Actualizar",
+    exitApp = "Salir",
 
     epgGuide = "Guía EPG",
     epgNow = "Ahora",
@@ -262,6 +266,8 @@ val StringsEn = AppStrings(
     featuredMovies = "Featured Movies",
     featuredSeries = "Featured Series",
     emptyCatalogHint = "Connect your Xtream Codes or M3U playlist to load channels, movies, and series.",
+    reloadPortal = "Reload",
+    exitApp = "Exit",
 
     epgGuide = "EPG Guide",
     epgNow = "Now",

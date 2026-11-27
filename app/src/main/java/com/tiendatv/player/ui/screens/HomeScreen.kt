@@ -1,5 +1,7 @@
 package com.tiendatv.player.ui.screens
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -8,29 +10,38 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,19 +55,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.tiendatv.player.data.local.MediaItemEntity
-import com.tiendatv.player.data.local.MediaType
 import com.tiendatv.player.data.local.WatchHistoryEntity
 import com.tiendatv.player.data.repository.CatalogCounts
 import com.tiendatv.player.ui.components.ContinueWatchingCard
-import com.tiendatv.player.ui.components.GlassCard
 import com.tiendatv.player.ui.components.GlassPillButton
-import com.tiendatv.player.ui.components.LandscapeHighlightCard
 import com.tiendatv.player.ui.components.NavTab
 import com.tiendatv.player.ui.components.PosterMediaCard
-import com.tiendatv.player.ui.components.SectionHeader
 import com.tiendatv.player.ui.components.tvFocusable
 import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
+import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -74,125 +82,197 @@ fun HomeScreen(
     onNavigateTab: (NavTab) -> Unit,
     onOpenMedia: (MediaItemEntity) -> Unit,
     onResumeHistory: (WatchHistoryEntity) -> Unit,
-    onToggleFavorite: (MediaItemEntity) -> Unit
+    onToggleFavorite: (MediaItemEntity) -> Unit,
+    onReloadCatalog: () -> Unit,
+    onExitApp: () -> Unit
 ) {
     val c = LocalTiendaColors.current
     val fmt = remember { NumberFormat.getIntegerInstance(Locale.getDefault()) }
-    val recentLive = remember(recentlyWatched) {
-        recentlyWatched.firstOrNull { it.type == MediaType.LIVE }
+
+    val showcaseItems = remember(featuredMovies, featuredSeries, heroItem) {
+        val mixed = buildList {
+            val max = maxOf(featuredMovies.size, featuredSeries.size)
+            for (i in 0 until minOf(max, 8)) {
+                featuredMovies.getOrNull(i)?.let { add(it) }
+                featuredSeries.getOrNull(i)?.let { add(it) }
+            }
+        }.distinctBy { it.uid }
+        if (mixed.isNotEmpty()) mixed else listOfNotNull(heroItem)
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp, start = 18.dp, end = 22.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp)
-    ) {
-        // Greeting line matching IMG_5973
-        item {
-            Text(
-                text = if (strings.navHome == "Inicio") "¿Qué vemos hoy?" else "What are we watching today?",
-                color = c.textSecondary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
-            )
+    var showcaseIndex by remember(showcaseItems) { mutableIntStateOf(0) }
+
+    LaunchedEffect(showcaseItems) {
+        if (showcaseItems.size > 1) {
+            while (true) {
+                delay(7_500L)
+                showcaseIndex = (showcaseIndex + 1) % showcaseItems.size
+            }
+        }
+    }
+
+    val currentShowcase = showcaseItems.getOrNull(showcaseIndex) ?: heroItem
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (currentShowcase != null) {
+            Crossfade(
+                targetState = currentShowcase,
+                animationSpec = tween(durationMillis = 850),
+                label = "homeBackdropCrossfade",
+                modifier = Modifier.fillMaxSize()
+            ) { item ->
+                val bgUrl = item.backdropUrl.ifBlank { item.logoUrl }
+                if (bgUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = bgUrl,
+                        contentDescription = item.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
         }
 
-        // Split top row: Featured Hero Banner (left) + 3 Stacked Category Count Pills (right)
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                verticalAlignment = Alignment.Top
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xEB0B0D11),
+                            Color(0x9E0B0D11),
+                            Color(0x450B0D11)
+                        )
+                    )
+                )
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x330B0D11),
+                            Color.Transparent,
+                            Color(0xD90B0D11)
+                        )
+                    )
+                )
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(236.dp)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color(0xBF12151E))
+                    .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(22.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Left: Featured Hero Card
-                Box(modifier = Modifier.weight(1.55f)) {
-                    if (heroItem != null) {
-                        val isFav = favoriteUids.contains(heroItem.uid)
-                        Box(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.LiveTv,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Row {
+                        Text(
+                            text = "Tienda",
+                            color = Color.White,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            text = "TV",
+                            color = c.accent,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+
+                HomeMenuRow(
+                    icon = Icons.Rounded.LiveTv,
+                    label = strings.liveChannels,
+                    badge = fmt.format(counts.liveCount),
+                    onClick = { onNavigateTab(NavTab.LIVE) }
+                )
+                HomeMenuRow(
+                    icon = Icons.Rounded.Movie,
+                    label = strings.movies,
+                    badge = fmt.format(counts.movieCount),
+                    onClick = { onNavigateTab(NavTab.MOVIES) }
+                )
+                HomeMenuRow(
+                    icon = Icons.Rounded.Tv,
+                    label = strings.series,
+                    badge = fmt.format(counts.seriesCount),
+                    onClick = { onNavigateTab(NavTab.SERIES) }
+                )
+                HomeMenuRow(
+                    icon = Icons.Rounded.Search,
+                    label = strings.navSearch,
+                    onClick = { onNavigateTab(NavTab.SEARCH) }
+                )
+                HomeMenuRow(
+                    icon = Icons.Rounded.Settings,
+                    label = strings.navSettings,
+                    onClick = { onNavigateTab(NavTab.SETTINGS) }
+                )
+                HomeMenuRow(
+                    icon = Icons.Rounded.Refresh,
+                    label = strings.reloadPortal,
+                    onClick = onReloadCatalog
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                HomeMenuRow(
+                    icon = Icons.AutoMirrored.Rounded.ExitToApp,
+                    label = strings.exitApp,
+                    onClick = onExitApp
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentPadding = PaddingValues(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp)
+            ) {
+                if (currentShowcase != null) {
+                    item {
+                        val isFav = favoriteUids.contains(currentShowcase.uid)
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(274.dp)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(Color(0xFF0E1117))
-                                .border(1.dp, c.glassBorder, RoundedCornerShape(24.dp))
+                                .padding(top = 18.dp),
+                            horizontalArrangement = Arrangement.spacedBy(22.dp),
+                            verticalAlignment = Alignment.Bottom
                         ) {
-                            val imgUrl = heroItem.backdropUrl.ifBlank { heroItem.logoUrl }
-                            if (imgUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = imgUrl,
-                                    contentDescription = heroItem.name,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            colors = listOf(
-                                                Color(0xEC0B0D11),
-                                                Color(0xA60B0D11),
-                                                Color(0x330B0D11)
-                                            )
-                                        )
-                                    )
-                            )
-
-                            // Optional floating EN VIVO quick-resume pill at top (matches IMG_5973)
-                            if (recentLive != null) {
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(14.dp)
-                                        .tvFocusable(
-                                            shape = RoundedCornerShape(24.dp),
-                                            onClick = { onResumeHistory(recentLive) }
-                                        )
-                                        .clip(RoundedCornerShape(24.dp))
-                                        .background(Color(0xCC12161F))
-                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
-                                        .padding(horizontal = 12.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(c.accent)
-                                    )
-                                    Column {
-                                        Text(
-                                            text = strings.liveBadge,
-                                            color = c.badgeGold,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 0.8.sp
-                                        )
-                                        Text(
-                                            text = recentLive.title,
-                                            color = Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.Rounded.PlayArrow,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-
                             Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(24.dp)
-                                    .fillMaxWidth(0.76f),
+                                modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
@@ -203,19 +283,18 @@ fun HomeScreen(
                                     letterSpacing = 1.4.sp
                                 )
                                 Text(
-                                    text = heroItem.name,
+                                    text = currentShowcase.name,
                                     color = Color.White,
-                                    fontSize = 27.sp,
+                                    fontSize = 30.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    maxLines = 1,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                // Metadata chips row (★ rating + year)
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    if (heroItem.rating > 0.0) {
+                                    if (currentShowcase.rating > 0.0) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -224,206 +303,160 @@ fun HomeScreen(
                                                 imageVector = Icons.Rounded.Star,
                                                 contentDescription = null,
                                                 tint = Color(0xFFF5B041),
-                                                modifier = Modifier.size(14.dp)
+                                                modifier = Modifier.size(15.dp)
                                             )
                                             Text(
-                                                text = String.format(Locale.US, "%.1f", heroItem.rating),
+                                                text = String.format(Locale.US, "%.1f", currentShowcase.rating),
                                                 color = Color(0xFFF5B041),
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
-                                    if (heroItem.year.isNotBlank()) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0x40FFFFFF))
-                                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = heroItem.year,
-                                                color = Color.White,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
+                                    if (currentShowcase.year.isNotBlank()) {
+                                        Text(
+                                            text = currentShowcase.year,
+                                            color = Color(0xCCFFFFFF),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
                                     }
                                 }
-                                if (heroItem.plot.isNotBlank()) {
+                                if (currentShowcase.plot.isNotBlank()) {
                                     Text(
-                                        text = heroItem.plot,
-                                        color = Color(0xCCFFFFFF),
-                                        fontSize = 13.sp,
-                                        maxLines = 2,
+                                        text = currentShowcase.plot,
+                                        color = Color(0xD9FFFFFF),
+                                        fontSize = 14.sp,
+                                        maxLines = 3,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     GlassPillButton(
                                         text = strings.playNow,
                                         icon = Icons.Rounded.PlayArrow,
                                         primary = true,
-                                        onClick = { onOpenMedia(heroItem) }
+                                        onClick = { onOpenMedia(currentShowcase) }
                                     )
                                     GlassPillButton(
                                         text = if (isFav) strings.favorited else strings.favorite,
                                         icon = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                         darkGlass = true,
-                                        onClick = { onToggleFavorite(heroItem) }
+                                        onClick = { onToggleFavorite(currentShowcase) }
+                                    )
+                                }
+                            }
+
+                            if (currentShowcase.logoUrl.isNotBlank()) {
+                                AsyncImage(
+                                    model = currentShowcase.logoUrl,
+                                    contentDescription = currentShowcase.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .width(134.dp)
+                                        .aspectRatio(2f / 3f)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .border(1.5.dp, Color(0x4DFFFFFF), RoundedCornerShape(16.dp))
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (continueWatching.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = strings.continueWatching.uppercase(),
+                                color = Color(0xCCFFFFFF),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp
+                            )
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                items(continueWatching, key = { it.uid }) { entry ->
+                                    ContinueWatchingCard(
+                                        entry = entry,
+                                        onClick = { onResumeHistory(entry) }
                                     )
                                 }
                             }
                         }
-                    } else {
-                        GlassCard(modifier = Modifier.fillMaxWidth().height(274.dp)) {
-                            Column(
-                                modifier = Modifier.padding(24.dp),
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = strings.welcomeTitle,
-                                    color = c.textPrimary,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = strings.emptyCatalogHint,
-                                    color = c.textSecondary,
-                                    fontSize = 14.sp
-                                )
+                    }
+                }
+
+                if (featuredMovies.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = strings.featuredMovies.uppercase(),
+                                color = Color(0xCCFFFFFF),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp
+                            )
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                items(featuredMovies, key = { "hm_${it.uid}" }) { item ->
+                                    PosterMediaCard(
+                                        item = item,
+                                        isFavorite = favoriteUids.contains(item.uid),
+                                        onClick = { onOpenMedia(item) },
+                                        onToggleFavorite = { onToggleFavorite(item) },
+                                        cardWidth = 142.dp
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                // Right: 3 Stacked Category Count Pills (matches IMG_5973)
-                Column(
-                    modifier = Modifier.weight(0.95f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    StackedCategoryPill(
-                        title = if (strings.navHome == "Inicio") "TV en vivo" else strings.liveChannels,
-                        count = fmt.format(counts.liveCount),
-                        icon = Icons.Rounded.LiveTv,
-                        onClick = { onNavigateTab(NavTab.LIVE) }
-                    )
-                    StackedCategoryPill(
-                        title = strings.movies,
-                        count = fmt.format(counts.movieCount),
-                        icon = Icons.Rounded.Movie,
-                        onClick = { onNavigateTab(NavTab.MOVIES) }
-                    )
-                    StackedCategoryPill(
-                        title = strings.series,
-                        count = fmt.format(counts.seriesCount),
-                        icon = Icons.Rounded.Tv,
-                        onClick = { onNavigateTab(NavTab.SERIES) }
-                    )
-                }
-            }
-        }
-
-        // NOVEDADES widescreen landscape row (matches IMG_5973)
-        if (featuredMovies.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionHeader(
-                        title = if (strings.navHome == "Inicio") "NOVEDADES" else "NEW RELEASES",
-                        actionText = if (strings.navHome == "Inicio") "Ver todo" else "See all",
-                        onActionClick = { onNavigateTab(NavTab.MOVIES) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(featuredMovies, key = { "nov_${it.uid}" }) { item ->
-                            LandscapeHighlightCard(
-                                item = item,
-                                onClick = { onOpenMedia(item) }
+                if (featuredSeries.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = strings.featuredSeries.uppercase(),
+                                color = Color(0xCCFFFFFF),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp
                             )
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                items(featuredSeries, key = { "hs_${it.uid}" }) { item ->
+                                    PosterMediaCard(
+                                        item = item,
+                                        isFavorite = favoriteUids.contains(item.uid),
+                                        onClick = { onOpenMedia(item) },
+                                        onToggleFavorite = { onToggleFavorite(item) },
+                                        cardWidth = 142.dp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }
 
-        // Continue Watching
-        if (continueWatching.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionHeader(title = strings.continueWatching, modifier = Modifier.fillMaxWidth())
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        items(continueWatching, key = { it.uid }) { entry ->
-                            ContinueWatchingCard(
-                                entry = entry,
-                                onClick = { onResumeHistory(entry) }
+                if (favorites.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = strings.favorites.uppercase(),
+                                color = Color(0xCCFFFFFF),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp
                             )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Recently Watched
-        if (recentlyWatched.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionHeader(title = strings.recentlyWatched, modifier = Modifier.fillMaxWidth())
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        items(recentlyWatched, key = { "rec_${it.uid}" }) { entry ->
-                            ContinueWatchingCard(
-                                entry = entry,
-                                onClick = { onResumeHistory(entry) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Favorites
-        if (favorites.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionHeader(
-                        title = strings.favorites,
-                        countText = fmt.format(favorites.size),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(favorites, key = { "fav_${it.uid}" }) { item ->
-                            PosterMediaCard(
-                                item = item,
-                                isFavorite = true,
-                                onClick = { onOpenMedia(item) },
-                                onToggleFavorite = { onToggleFavorite(item) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Featured Series
-        if (featuredSeries.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionHeader(
-                        title = strings.featuredSeries,
-                        countText = fmt.format(counts.seriesCount),
-                        actionText = if (strings.navHome == "Inicio") "Ver todo" else "See all",
-                        onActionClick = { onNavigateTab(NavTab.SERIES) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(featuredSeries, key = { "ser_${it.uid}" }) { item ->
-                            PosterMediaCard(
-                                item = item,
-                                isFavorite = favoriteUids.contains(item.uid),
-                                onClick = { onOpenMedia(item) },
-                                onToggleFavorite = { onToggleFavorite(item) }
-                            )
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                items(favorites, key = { "hf_${it.uid}" }) { item ->
+                                    PosterMediaCard(
+                                        item = item,
+                                        isFavorite = true,
+                                        onClick = { onOpenMedia(item) },
+                                        onToggleFavorite = { onToggleFavorite(item) },
+                                        cardWidth = 142.dp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -433,52 +466,47 @@ fun HomeScreen(
 }
 
 @Composable
-private fun StackedCategoryPill(
-    title: String,
-    count: String,
+private fun HomeMenuRow(
     icon: ImageVector,
+    label: String,
+    badge: String? = null,
     onClick: () -> Unit
 ) {
     val c = LocalTiendaColors.current
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(14.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(82.dp)
-            .tvFocusable(shape = shape, onClick = onClick)
+            .tvFocusable(shape = shape, focusScale = 1.03f, onClick = onClick)
             .clip(shape)
-            .background(c.glassSurfaceElevated)
-            .border(1.dp, c.glassBorder, shape)
-            .padding(horizontal = 18.dp),
+            .background(Color(0x24FFFFFF))
+            .border(1.dp, Color(0x1EFFFFFF), shape)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = label,
             tint = c.accent,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(20.dp)
         )
         Text(
-            text = title,
-            color = c.textPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
+            text = label,
+            color = Color.White,
+            fontSize = 14.5.sp,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        Text(
-            text = count,
-            color = c.textSecondary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-            contentDescription = null,
-            tint = c.textSecondary,
-            modifier = Modifier.size(20.dp)
-        )
+        if (!badge.isNullOrBlank()) {
+            Text(
+                text = badge,
+                color = Color(0xAAFFFFFF),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }

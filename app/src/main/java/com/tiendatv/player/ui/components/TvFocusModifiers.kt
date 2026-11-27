@@ -1,7 +1,9 @@
 package com.tiendatv.player.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -26,32 +28,40 @@ import androidx.compose.ui.unit.dp
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 
 /**
- * Unified TV D-pad + touch interaction modifier.
- * Renders a crisp tvOS-style focus ring and subtle scale lift when focused via remote,
- * and triggers [onClick] on both touch tap and DPAD_CENTER / Enter key release.
+ * Silky spring-animated TV D-pad + touch interaction modifier.
  */
 fun Modifier.tvFocusable(
     shape: Shape = RoundedCornerShape(16.dp),
-    focusScale: Float = 1.04f,
+    focusScale: Float = 1.045f,
     focusBorderWidth: Dp = 2.5.dp,
     focusBorderColor: Color? = null,
     onFocused: (() -> Unit)? = null,
     onClick: () -> Unit
 ): Modifier = composed {
     val palette = LocalTiendaColors.current
-    val ringColor = focusBorderColor ?: palette.focusRing
+    val targetRingColor = focusBorderColor ?: palette.focusRing
     var isFocused by remember { mutableStateOf(false) }
+
     val scale by animateFloatAsState(
         targetValue = if (isFocused) focusScale else 1f,
-        animationSpec = tween(durationMillis = 140),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
         label = "tvFocusScale"
+    )
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) targetRingColor else Color.Transparent,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "tvFocusBorder"
     )
 
     this
         .scale(scale)
         .border(
             width = if (isFocused) focusBorderWidth else 0.dp,
-            color = if (isFocused) ringColor else Color.Transparent,
+            color = borderColor,
             shape = shape
         )
         .onFocusChanged { state ->
