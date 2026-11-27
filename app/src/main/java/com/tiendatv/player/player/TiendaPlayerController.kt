@@ -66,51 +66,6 @@ class TiendaPlayerController(
     private var lastSavedAtMs = 0L
     private var appliedAutoAudioForCurrentItem = false
 
-    init {
-        val preferredAudioCodes = when (preferredLanguage) {
-            AppLanguage.EN -> arrayOf("en", "eng", "en-US", "en-GB")
-            AppLanguage.ES -> arrayOf("es", "spa", "es-419", "es-MX", "es-ES")
-        }
-
-        trackSelector.parameters = trackSelector.buildUponParameters()
-            .setPreferredAudioLanguages(*preferredAudioCodes)
-            .build()
-
-        val renderersFactory = DefaultRenderersFactory(context)
-            .setEnableDecoderFallback(true)
-            .setExtensionRendererMode(
-                if (preferSoftwareDecoder) {
-                    DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-                } else {
-                    DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-                }
-            )
-
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                bufferPreset.minBufferMs,
-                bufferPreset.maxBufferMs,
-                bufferPreset.bufferForPlaybackMs,
-                bufferPreset.bufferForPlaybackAfterRebufferMs
-            )
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
-
-        val dataSourceFactory = OkHttpDataSource.Factory(NetworkModule.streamClient)
-            .setUserAgent(AppConfig.USER_AGENT)
-
-        exoPlayer = ExoPlayer.Builder(context)
-            .setRenderersFactory(renderersFactory)
-            .setLoadControl(loadControl)
-            .setTrackSelector(trackSelector)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
-            .build()
-
-        exoPlayer.playWhenReady = true
-        exoPlayer.addListener(playerListener)
-        startPositionTicker()
-    }
-
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _uiState.update { it.copy(isPlaying = isPlaying) }
@@ -170,6 +125,51 @@ class TiendaPlayerController(
         override fun onPlayerError(error: PlaybackException) {
             scheduleReconnect(error.errorCodeName + ": " + (error.localizedMessage ?: "Playback error"))
         }
+    }
+
+    init {
+        val preferredAudioCodes = when (preferredLanguage) {
+            AppLanguage.EN -> arrayOf("en", "eng", "en-US", "en-GB")
+            AppLanguage.ES -> arrayOf("es", "spa", "es-419", "es-MX", "es-ES")
+        }
+
+        trackSelector.parameters = trackSelector.buildUponParameters()
+            .setPreferredAudioLanguages(*preferredAudioCodes)
+            .build()
+
+        val renderersFactory = DefaultRenderersFactory(context)
+            .setEnableDecoderFallback(true)
+            .setExtensionRendererMode(
+                if (preferSoftwareDecoder) {
+                    DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                } else {
+                    DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                }
+            )
+
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                bufferPreset.minBufferMs,
+                bufferPreset.maxBufferMs,
+                bufferPreset.bufferForPlaybackMs,
+                bufferPreset.bufferForPlaybackAfterRebufferMs
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
+
+        val dataSourceFactory = OkHttpDataSource.Factory(NetworkModule.streamClient)
+            .setUserAgent(AppConfig.USER_AGENT)
+
+        exoPlayer = ExoPlayer.Builder(context)
+            .setRenderersFactory(renderersFactory)
+            .setLoadControl(loadControl)
+            .setTrackSelector(trackSelector)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .build()
+
+        exoPlayer.playWhenReady = true
+        exoPlayer.addListener(playerListener)
+        startPositionTicker()
     }
 
     /**
