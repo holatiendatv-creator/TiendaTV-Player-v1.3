@@ -62,7 +62,8 @@ fun CatalogTopBar(
     onSearchQueryChange: (String) -> Unit,
     onCycleSort: () -> Unit,
     modifier: Modifier = Modifier,
-    searchHint: String = strings.searchPlaceholder
+    searchHint: String = strings.searchPlaceholder,
+    showCategoryDropdown: Boolean = true
 ) {
     val c = LocalTiendaColors.current
     var showCategoryModal by remember { mutableStateOf(false) }
@@ -87,50 +88,51 @@ fun CatalogTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Rounded pill Category Dropdown (matches IMG_5974 / IMG_5975)
-            Row(
-                modifier = Modifier
-                    .width(240.dp)
-                    .tvFocusable(
-                        shape = RoundedCornerShape(16.dp),
-                        onClick = { showCategoryModal = true }
-                    )
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(c.glassSurfaceElevated)
-                    .border(1.dp, c.glassBorder, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(
+            if (showCategoryDropdown) {
+                Row(
                     modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(c.accent),
-                    contentAlignment = Alignment.Center
+                        .width(220.dp)
+                        .tvFocusable(
+                            shape = RoundedCornerShape(16.dp),
+                            onClick = { showCategoryModal = true }
+                        )
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(c.glassSurfaceElevated)
+                        .border(1.dp, c.glassBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .background(c.accent),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.FilterList,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Text(
+                        text = selectedCatName,
+                        color = c.textPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                     Icon(
-                        imageVector = Icons.Rounded.FilterList,
+                        imageVector = Icons.Rounded.UnfoldMore,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                        tint = c.textSecondary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Text(
-                    text = selectedCatName,
-                    color = c.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    imageVector = Icons.Rounded.UnfoldMore,
-                    contentDescription = null,
-                    tint = c.textSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
             }
 
             // Rounded pill Search Bar
@@ -188,7 +190,7 @@ fun CatalogTopBar(
                 }
             }
 
-            // Clean numeric item count (e.g. "86,198" / "17,142")
+            // Clean numeric item count
             Text(
                 text = formattedCount,
                 color = c.textSecondary,
@@ -231,7 +233,7 @@ fun CatalogTopBar(
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
-                        text = strings.allCategories,
+                        text = strings.categoriesHeader,
                         color = c.textPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold

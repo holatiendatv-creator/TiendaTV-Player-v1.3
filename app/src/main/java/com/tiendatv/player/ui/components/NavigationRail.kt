@@ -1,12 +1,23 @@
 package com.tiendatv.player.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,13 +35,21 @@ import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tiendatv.player.ui.i18n.AppStrings
@@ -53,6 +72,17 @@ fun TiendaNavigationRail(
     modifier: Modifier = Modifier
 ) {
     val c = LocalTiendaColors.current
+    var isRailFocused by remember { mutableStateOf(false) }
+
+    val railWidth by animateDpAsState(
+        targetValue = if (isRailFocused) 204.dp else 72.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "railWidth"
+    )
+
     val items = listOf(
         Triple(NavTab.HOME, Icons.Rounded.Home, strings.navHome),
         Triple(NavTab.LIVE, Icons.Rounded.LiveTv, strings.navLive),
@@ -65,61 +95,103 @@ fun TiendaNavigationRail(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(92.dp)
+            .width(railWidth)
+            .onFocusChanged { isRailFocused = it.hasFocus }
             .background(c.glassRail)
             .border(width = 1.dp, color = c.glassBorder)
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(vertical = 14.dp, horizontal = 10.dp),
+        horizontalAlignment = if (isRailFocused) Alignment.Start else Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = if (isRailFocused) 4.dp else 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (isRailFocused) Arrangement.Start else Arrangement.Center
         ) {
-            Icon(
-                imageVector = Icons.Rounded.LiveTv,
-                contentDescription = "TiendaTV",
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.LiveTv,
+                    contentDescription = "TiendaTV",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            AnimatedVisibility(
+                visible = isRailFocused,
+                enter = fadeIn() + expandHorizontally(),
+                exit = fadeOut() + shrinkHorizontally()
+            ) {
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = c.textPrimary)) { append("Tienda") }
+                        withStyle(SpanStyle(color = c.accent)) { append("TV") }
+                    },
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 10.dp)
+                )
+            }
         }
-        Spacer(modifier = Modifier.height(4.dp))
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         items.forEach { (tab, icon, label) ->
             val selected = tab == selectedTab
             val shape = RoundedCornerShape(14.dp)
-            Column(
+            val pillBg by animateColorAsState(
+                targetValue = if (selected) c.accentSoft else Color.Transparent,
+                label = "railItemBg"
+            )
+            val tint by animateColorAsState(
+                targetValue = if (selected) c.accent else c.textSecondary,
+                label = "railItemTint"
+            )
+
+            Row(
                 modifier = Modifier
-                    .width(74.dp)
+                    .fillMaxWidth()
                     .tvFocusable(
                         shape = shape,
-                        focusScale = 1.04f,
+                        focusScale = 1.03f,
                         onClick = { onSelectTab(tab) }
                     )
                     .clip(shape)
-                    .background(if (selected) c.accentSoft else Color.Transparent)
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                    .background(pillBg)
+                    .padding(vertical = 10.dp, horizontal = if (isRailFocused) 12.dp else 0.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (isRailFocused) Arrangement.Start else Arrangement.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    tint = if (selected) c.accent else c.textSecondary,
-                    modifier = Modifier.size(21.dp)
+                    tint = tint,
+                    modifier = Modifier.size(22.dp)
                 )
-                Text(
-                    text = label,
-                    color = if (selected) c.accent else c.textSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                AnimatedVisibility(
+                    visible = isRailFocused,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally()
+                ) {
+                    Text(
+                        text = label,
+                        color = tint,
+                        fontSize = 14.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 12.dp)
+                    )
+                }
             }
         }
     }

@@ -18,6 +18,8 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -25,10 +27,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +49,9 @@ import com.tiendatv.player.ui.components.SectionHeader
 import com.tiendatv.player.ui.components.tvFocusable
 import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
+import com.tiendatv.player.update.AppUpdater
+import com.tiendatv.player.update.UpdateState
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -64,7 +71,10 @@ fun SettingsScreen(
     onOpenAddProfile: () -> Unit
 ) {
     val c = LocalTiendaColors.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showChangePinDialog by remember { mutableStateOf(false) }
+    var updateState by remember { mutableStateOf<UpdateState>(UpdateState.Idle) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -89,6 +99,159 @@ fun SettingsScreen(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
+
+        // 0. App Updates (In-app check + download + install)
+        item {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            SectionHeader(title = strings.updatesSection)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${AppConfig.APP_NAME} v${AppConfig.APP_VERSION} (${AppConfig.VERSION_CODE})",
+                                color = c.textSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        when (val st = updateState) {
+                            is UpdateState.Available -> {
+                                GlassPillButton(
+                                    text = strings.downloadAndInstall,
+                                    icon = Icons.Rounded.SystemUpdate,
+                                    primary = true,
+                                    onClick = {
+                                        scope.launch {
+                                            updateState = UpdateState.Downloading(0f)
+                                            val res = AppUpdater.downloadApk(context, st.apkUrl) { frac ->
+                                                updateState = UpdateState.Downloading(frac)
+                                            }
+                                            updateState = res.fold(
+                                                onSuccess = { file ->
+                                                    if (AppUpdater.installApk(context, file)) {
+                                                        UpdateState.ReadyToInstall(file)
+                                                    } else {
+                                                        UpdateState.PermissionRequired(file)
+                                                    }
+                                                },
+                                                onFailure = { err ->
+                                                    UpdateState.Error(err.localizedMessage ?: "Download failed")
+                                                }
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                            is UpdateState.ReadyToInstall -> {
+                                GlassPillButton(
+                                    text = strings.installUpdate,
+                                    icon = Icons.Rounded.SystemUpdate,
+                                    primary = true,
+                                    onClick = {
+                                        if (!AppUpdater.installApk(context, st.apkFile)) {
+                                            updateState = UpdateState.PermissionRequired(st.apkFile)
+                                        }
+                                    }
+                                )
+                            }
+                            is UpdateState.PermissionRequired -> {
+                                GlassPillButton(
+                                    text = strings.installUpdate,
+                                    icon = Icons.Rounded.SystemUpdate,
+                                    primary = true,
+                                    onClick = {
+                                        if (AppUpdater.installApk(context, st.apkFile)) {
+                                            updateState = UpdateState.ReadyToInstall(st.apkFile)
+                                        }
+                                    }
+                                )
+                            }
+                            is UpdateState.Checking, is UpdateState.Downloading -> Unit
+                            else -> {
+                                GlassPillButton(
+                                    text = strings.checkForUpdates,
+                                    icon = Icons.Rounded.SystemUpdate,
+                                    primary = true,
+                                    onClick = {
+                                        scope.launch {
+                                            updateState = UpdateState.Checking
+                                            updateState = AppUpdater.checkForUpdate()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    when (val st = updateState) {
+                        UpdateState.Checking -> {
+                            Text(
+                                text = strings.checkingUpdates,
+                                color = c.textSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+                        UpdateState.UpToDate -> {
+                            Text(
+                                text = strings.upToDate,
+                                color = c.accent,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        is UpdateState.Available -> {
+                            Text(
+                                text = "${strings.updateAvailable} v${st.versionName}",
+                                color = c.accent,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        is UpdateState.Downloading -> {
+                            val pct = (st.progress * 100).toInt()
+                            Text(
+                                text = "${strings.downloadingUpdate} $pct%",
+                                color = c.textSecondary,
+                                fontSize = 13.sp
+                            )
+                            LinearProgressIndicator(
+                                progress = { st.progress.coerceIn(0f, 1f) },
+                                color = c.accent,
+                                trackColor = c.glassBorder,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                            )
+                        }
+                        is UpdateState.PermissionRequired -> {
+                            Text(
+                                text = strings.allowInstallPermission,
+                                color = c.accentLight,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        is UpdateState.Error -> {
+                            Text(
+                                text = "${strings.updateError} ${st.message}",
+                                color = c.accentLight,
+                                fontSize = 13.sp
+                            )
+                        }
+                        else -> Unit
+                    }
+                }
             }
         }
 
@@ -301,9 +464,6 @@ fun SettingsScreen(
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
                                 )
-                                val exp = if (profile.expirationDate.isNotBlank()) {
-                                    " • ${strings.expiresLabel} ${profile.expirationDate}"
-                                } else ""
                                 Text(
                                     text = if (profile.expirationDate.isNotBlank()) "${strings.expiresLabel} ${profile.expirationDate}" else profile.username,
                                     color = c.textSecondary,

@@ -1,5 +1,12 @@
 package com.tiendatv.player.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -14,12 +21,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
@@ -29,11 +33,15 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,6 +52,7 @@ import com.tiendatv.player.data.local.EpgProgramEntity
 import com.tiendatv.player.data.local.MediaItemEntity
 import com.tiendatv.player.data.repository.SortMode
 import com.tiendatv.player.ui.components.CatalogTopBar
+import com.tiendatv.player.ui.components.CategorySidebar
 import com.tiendatv.player.ui.components.GlassCard
 import com.tiendatv.player.ui.components.GlassPillButton
 import com.tiendatv.player.ui.components.tvFocusable
@@ -78,279 +87,326 @@ fun LiveTvScreen(
 ) {
     val c = LocalTiendaColors.current
     val timeFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val useCategorySidebar = LocalConfiguration.current.screenWidthDp >= 640
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 14.dp, end = 20.dp, start = 8.dp, bottom = 14.dp)
-    ) {
-        CatalogTopBar(
-            categories = categories,
-            selectedCategoryId = selectedCategoryId,
-            searchQuery = searchQuery,
-            totalCount = totalCount,
-            sortMode = sortMode,
-            strings = strings,
-            onSelectCategory = onSelectCategory,
-            onSearchQueryChange = onSearchQueryChange,
-            onCycleSort = onCycleSort
-        )
+    Row(modifier = Modifier.fillMaxSize()) {
+        if (useCategorySidebar) {
+            CategorySidebar(
+                categories = categories,
+                selectedCategoryId = selectedCategoryId,
+                strings = strings,
+                onSelectCategory = onSelectCategory
+            )
+        }
 
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                .weight(1f)
+                .fillMaxHeight()
+                .padding(top = 14.dp, end = 20.dp, start = 14.dp, bottom = 14.dp)
         ) {
-            // Left: Channel list with smooth auto-pagination
-            val listState = rememberLazyListState()
-            LaunchedEffect(listState, hasMore, channels.size) {
-                snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
-                    .collect { lastVisible ->
-                        if (hasMore && channels.isNotEmpty() && lastVisible >= channels.size - 15) {
-                            onLoadMore()
-                        }
-                    }
-            }
+            CatalogTopBar(
+                categories = categories,
+                selectedCategoryId = selectedCategoryId,
+                searchQuery = searchQuery,
+                totalCount = totalCount,
+                sortMode = sortMode,
+                strings = strings,
+                onSelectCategory = onSelectCategory,
+                onSearchQueryChange = onSearchQueryChange,
+                onCycleSort = onCycleSort,
+                showCategoryDropdown = !useCategorySidebar
+            )
 
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .weight(1.35f)
-                    .fillMaxHeight(),
-                contentPadding = PaddingValues(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(channels, key = { it.uid }) { channel ->
-                    val key = channel.epgChannelId.ifBlank { channel.streamId }
-                    val nowProg = currentPrograms[key]
-                    val isSelected = focusedChannel?.uid == channel.uid
-                    val shape = RoundedCornerShape(16.dp)
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .tvFocusable(
-                                shape = shape,
-                                focusScale = 1.02f,
-                                onFocused = { onFocusChannel(channel) },
-                                onClick = { onPlayChannel(channel) }
-                            )
-                            .clip(shape)
-                            .background(if (isSelected) c.accentSoft else c.glassSurface)
-                            .border(1.dp, if (isSelected) c.accent else c.glassBorder, shape)
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(c.pillBackground),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (channel.logoUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = channel.logoUrl,
-                                    contentDescription = channel.name,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(4.dp)
-                                )
-                            } else {
-                                Text(
-                                    text = "${channel.channelNumber}",
-                                    color = c.textSecondary,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                // Left: Channel list with smooth auto-pagination & category crossfade
+                val listState = rememberLazyListState()
+                LaunchedEffect(listState, hasMore, channels.size) {
+                    snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+                        .collect { lastVisible ->
+                            if (hasMore && channels.isNotEmpty() && lastVisible >= channels.size - 15) {
+                                onLoadMore()
                             }
                         }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = channel.name,
-                                color = c.textPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = nowProg?.title ?: strings.epgUnavailable,
-                                color = c.textSecondary,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        if (favoriteUids.contains(channel.uid)) {
-                            Text(text = "♥", color = c.accent, fontSize = 14.sp)
-                        }
-                    }
                 }
 
-                if (hasMore) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            GlassPillButton(text = strings.loadMore, onClick = onLoadMore)
-                        }
-                    }
-                }
-            }
-
-            // Right: Live EPG Guide Panel
-            GlassCard(
-                modifier = Modifier
-                    .weight(0.95f)
-                    .fillMaxHeight(),
-                elevated = true
-            ) {
-                Column(
+                AnimatedContent(
+                    targetState = selectedCategoryId,
+                    transitionSpec = {
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(140))
+                    },
+                    label = "liveCategoryFade",
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        .weight(1.35f)
+                        .fillMaxHeight()
+                ) { _ ->
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = strings.epgGuide,
-                            color = c.textPrimary,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        GlassPillButton(
-                            text = strings.refreshEpg,
-                            icon = Icons.Rounded.Refresh,
-                            horizontalPadding = 12.dp,
-                            verticalPadding = 7.dp,
-                            onClick = onRefreshEpg
-                        )
-                    }
+                        items(channels, key = { it.uid }) { channel ->
+                            val key = channel.epgChannelId.ifBlank { channel.streamId }
+                            val nowProg = currentPrograms[key]
+                            val isSelected = focusedChannel?.uid == channel.uid
+                            val shape = RoundedCornerShape(16.dp)
+                            val rowBg by animateColorAsState(
+                                targetValue = if (isSelected) c.accentSoft else c.glassSurface,
+                                animationSpec = tween(180),
+                                label = "chRowBg"
+                            )
+                            val rowBorder by animateColorAsState(
+                                targetValue = if (isSelected) c.accent else c.glassBorder,
+                                animationSpec = tween(180),
+                                label = "chRowBorder"
+                            )
 
-                    val target = focusedChannel ?: channels.firstOrNull()
-                    if (target != null) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (target.logoUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = target.logoUrl,
-                                    contentDescription = target.name,
-                                    contentScale = ContentScale.Fit,
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .tvFocusable(
+                                        shape = shape,
+                                        focusScale = 1.02f,
+                                        onFocused = { onFocusChannel(channel) },
+                                        onClick = { onPlayChannel(channel) }
+                                    )
+                                    .clip(shape)
+                                    .background(rowBg)
+                                    .border(1.dp, rowBorder, shape)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
                                     modifier = Modifier
-                                        .size(54.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(c.pillBackground)
-                                        .padding(6.dp)
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = target.name,
-                                    color = c.textPrimary,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(c.pillBackground),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (channel.logoUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = channel.logoUrl,
+                                            contentDescription = channel.name,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(4.dp)
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "${channel.channelNumber}",
+                                            color = c.textSecondary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = channel.name,
+                                        color = c.textPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = nowProg?.title ?: strings.epgUnavailable,
+                                        color = c.textSecondary,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                if (favoriteUids.contains(channel.uid)) {
+                                    Text(text = "♥", color = c.accent, fontSize = 14.sp)
+                                }
                             }
                         }
 
-                        val isFav = favoriteUids.contains(target.uid)
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            GlassPillButton(
-                                text = strings.playNow,
-                                icon = Icons.Rounded.PlayArrow,
-                                primary = true,
-                                onClick = { onPlayChannel(target) }
-                            )
-                            GlassPillButton(
-                                text = if (isFav) strings.favorited else strings.favorite,
-                                icon = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                onClick = { onToggleFavorite(target) }
-                            )
+                        if (hasMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    GlassPillButton(text = strings.loadMore, onClick = onLoadMore)
+                                }
+                            }
                         }
+                    }
+                }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        if (focusedChannelEpg.isEmpty()) {
+                // Right: Live EPG Guide Panel with smooth crossfade as focus moves
+                GlassCard(
+                    modifier = Modifier
+                        .weight(0.95f)
+                        .fillMaxHeight(),
+                    elevated = true
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = strings.epgUnavailable,
-                                color = c.textSecondary,
-                                fontSize = 13.sp
+                                text = strings.epgGuide,
+                                color = c.textPrimary,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold
                             )
-                        } else {
-                            val nowMs = System.currentTimeMillis()
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                items(focusedChannelEpg, key = { it.id }) { prog ->
-                                    val isCurrent = nowMs in prog.startMs..prog.endMs
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(if (isCurrent) c.accentSoft else c.glassSurface)
-                                            .border(1.dp, c.glassBorder, RoundedCornerShape(14.dp))
-                                            .padding(12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                            GlassPillButton(
+                                text = strings.refreshEpg,
+                                icon = Icons.Rounded.Refresh,
+                                horizontalPadding = 12.dp,
+                                verticalPadding = 7.dp,
+                                onClick = onRefreshEpg
+                            )
+                        }
+
+                        val target = focusedChannel ?: channels.firstOrNull()
+                        AnimatedContent(
+                            targetState = target?.uid,
+                            transitionSpec = {
+                                (fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 18 }) togetherWith
+                                    fadeOut(tween(140))
+                            },
+                            label = "epgChannelPreview",
+                            modifier = Modifier.weight(1f)
+                        ) { _ ->
+                            if (target != null) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = if (isCurrent) strings.epgNow else strings.epgNext,
-                                                color = if (isCurrent) c.accent else c.textSecondary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                text = "${timeFmt.format(Date(prog.startMs))} - ${timeFmt.format(Date(prog.endMs))}",
-                                                color = c.textSecondary,
-                                                fontSize = 11.sp
+                                        if (target.logoUrl.isNotBlank()) {
+                                            AsyncImage(
+                                                model = target.logoUrl,
+                                                contentDescription = target.name,
+                                                contentScale = ContentScale.Fit,
+                                                modifier = Modifier
+                                                    .size(54.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(c.pillBackground)
+                                                    .padding(6.dp)
                                             )
                                         }
-                                        Text(
-                                            text = prog.title,
-                                            color = c.textPrimary,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        if (prog.description.isNotBlank()) {
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = prog.description,
-                                                color = c.textSecondary,
-                                                fontSize = 12.sp,
+                                                text = target.name,
+                                                color = c.textPrimary,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
                                                 maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         }
-                                        if (isCurrent && prog.endMs > prog.startMs) {
-                                            val frac = ((nowMs - prog.startMs).toFloat() /
-                                                (prog.endMs - prog.startMs).toFloat()).coerceIn(0f, 1f)
-                                            LinearProgressIndicator(
-                                                progress = { frac },
-                                                color = c.accent,
-                                                trackColor = c.glassBorder,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(4.dp)
-                                                    .clip(RoundedCornerShape(2.dp))
-                                            )
+                                    }
+
+                                    val isFav = favoriteUids.contains(target.uid)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        GlassPillButton(
+                                            text = strings.playNow,
+                                            icon = Icons.Rounded.PlayArrow,
+                                            primary = true,
+                                            onClick = { onPlayChannel(target) }
+                                        )
+                                        GlassPillButton(
+                                            text = if (isFav) strings.favorited else strings.favorite,
+                                            icon = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                            onClick = { onToggleFavorite(target) }
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(2.dp))
+
+                                    if (focusedChannelEpg.isEmpty()) {
+                                        Text(
+                                            text = strings.epgUnavailable,
+                                            color = c.textSecondary,
+                                            fontSize = 13.sp
+                                        )
+                                    } else {
+                                        val nowMs = System.currentTimeMillis()
+                                        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            items(focusedChannelEpg, key = { it.id }) { prog ->
+                                                val isCurrent = nowMs in prog.startMs..prog.endMs
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(14.dp))
+                                                        .background(if (isCurrent) c.accentSoft else c.glassSurface)
+                                                        .border(1.dp, c.glassBorder, RoundedCornerShape(14.dp))
+                                                        .padding(12.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                                    ) {
+                                                        Text(
+                                                            text = if (isCurrent) strings.epgNow else strings.epgNext,
+                                                            color = if (isCurrent) c.accent else c.textSecondary,
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                        Text(
+                                                            text = "${timeFmt.format(Date(prog.startMs))} - ${timeFmt.format(Date(prog.endMs))}",
+                                                            color = c.textSecondary,
+                                                            fontSize = 11.sp
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = prog.title,
+                                                        color = c.textPrimary,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    if (prog.description.isNotBlank()) {
+                                                        Text(
+                                                            text = prog.description,
+                                                            color = c.textSecondary,
+                                                            fontSize = 12.sp,
+                                                            maxLines = 2,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                    if (isCurrent && prog.endMs > prog.startMs) {
+                                                        val frac = ((nowMs - prog.startMs).toFloat() /
+                                                            (prog.endMs - prog.startMs).toFloat()).coerceIn(0f, 1f)
+                                                        LinearProgressIndicator(
+                                                            progress = { frac },
+                                                            color = c.accent,
+                                                            trackColor = c.glassBorder,
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(4.dp)
+                                                                .clip(RoundedCornerShape(2.dp))
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

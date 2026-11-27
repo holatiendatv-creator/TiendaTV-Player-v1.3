@@ -59,7 +59,7 @@ jobs:
         if: ${{ github.event.inputs.build_debug == 'true' }}
         run: gradle assembleDebug --stacktrace --no-daemon
 
-      - name: Prepare TiendaTV-latest.apk
+      - name: Prepare TiendaTV-latest.apk & version.json
         shell: bash
         run: |
           mkdir -p dist
@@ -69,7 +69,17 @@ jobs:
             echo "ERROR: app-release.apk not found!"
             exit 1
           fi
+          VERSION_CODE=$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -n1 | grep -oE '[0-9]+')
+          VERSION_NAME=$(grep -E 'versionName\s*=' app/build.gradle.kts | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+          cat > dist/version.json <<EOF
+          {
+            "versionCode": ${VERSION_CODE},
+            "versionName": "${VERSION_NAME}",
+            "apkUrl": "https://github.com/holatiendatv-creator/TiendaTV-Player-v1.3/releases/download/latest/TiendaTV-latest.apk"
+          }
+          EOF
           ls -lh dist/
+          cat dist/version.json
 
       - name: Publish / Overwrite Permanent 'latest' GitHub Release
         shell: bash
@@ -77,9 +87,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest dist/TiendaTV-latest.apk --clobber
+            gh release upload latest dist/TiendaTV-latest.apk dist/version.json --clobber
           else
-            gh release create latest dist/TiendaTV-latest.apk \
+            gh release create latest dist/TiendaTV-latest.apk dist/version.json \
               --title "TiendaTV Player (Latest)" \
               --notes "Auto-published permanent build for Firestick / Android TV Downloader." \
               --latest
@@ -96,9 +106,9 @@ jobs:
             exit 0
           fi
           if gh release view latest --repo "$PUBLIC_REPO" >/dev/null 2>&1; then
-            gh release upload latest dist/TiendaTV-latest.apk --repo "$PUBLIC_REPO" --clobber
+            gh release upload latest dist/TiendaTV-latest.apk dist/version.json --repo "$PUBLIC_REPO" --clobber
           else
-            gh release create latest dist/TiendaTV-latest.apk \
+            gh release create latest dist/TiendaTV-latest.apk dist/version.json \
               --repo "$PUBLIC_REPO" \
               --title "TiendaTV Player (Latest)" \
               --notes "Auto-published permanent build for Firestick / Android TV Downloader." \

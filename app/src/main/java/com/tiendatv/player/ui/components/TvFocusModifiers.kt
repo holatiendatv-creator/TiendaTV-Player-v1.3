@@ -2,12 +2,18 @@ package com.tiendatv.player.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +51,7 @@ fun Modifier.tvFocusable(
     val scale by animateFloatAsState(
         targetValue = if (isFocused) focusScale else 1f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
+            dampingRatio = 0.82f,
             stiffness = Spring.StiffnessMediumLow
         ),
         label = "tvFocusScale"
@@ -54,13 +60,19 @@ fun Modifier.tvFocusable(
     val borderColor by animateColorAsState(
         targetValue = if (isFocused) targetRingColor else Color.Transparent,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "tvFocusBorder"
+        label = "tvFocusBorderColor"
+    )
+
+    val borderWidth by animateDpAsState(
+        targetValue = if (isFocused) focusBorderWidth else 0.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "tvFocusBorderWidth"
     )
 
     this
         .scale(scale)
         .border(
-            width = if (isFocused) focusBorderWidth else 0.dp,
+            width = borderWidth,
             color = borderColor,
             shape = shape
         )
@@ -83,4 +95,35 @@ fun Modifier.tvFocusable(
         }
         .focusable()
         .clickable(onClick = onClick)
+}
+
+/**
+ * Provides smooth pivot-style BringIntoView scrolling across LazyColumn, LazyRow, and LazyVerticalGrid
+ * so D-pad navigation glides instead of snapping abruptly.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ProvideSmoothTvScrolling(content: @Composable () -> Unit) {
+    val pivotSpec = remember {
+        object : BringIntoViewSpec {
+            override val scrollAnimationSpec = spring<Float>(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+
+            override fun calculateScrollDistance(
+                offset: Float,
+                size: Float,
+                containerSize: Float
+            ): Float {
+                val targetCenter = (containerSize - size) * 0.38f
+                val maxOffset = (containerSize - size).coerceAtLeast(0f)
+                val clampedTarget = targetCenter.coerceIn(0f, maxOffset)
+                return offset - clampedTarget
+            }
+        }
+    }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides pivotSpec) {
+        content()
+    }
 }

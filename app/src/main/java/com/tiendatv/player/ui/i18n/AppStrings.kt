@@ -11,7 +11,8 @@ data class AppStrings(
     val navSearch: String,
     val navSettings: String,
 
-    // Top bar & sorting
+    // Top bar, category sidebar & sorting
+    val categoriesHeader: String,
     val allCategories: String,
     val searchPlaceholder: String,
     val itemsLabel: String,
@@ -80,6 +81,16 @@ data class AppStrings(
 
     // Settings
     val settingsTitle: String,
+    val updatesSection: String,
+    val checkForUpdates: String,
+    val checkingUpdates: String,
+    val upToDate: String,
+    val updateAvailable: String,
+    val downloadAndInstall: String,
+    val downloadingUpdate: String,
+    val installUpdate: String,
+    val allowInstallPermission: String,
+    val updateError: String,
     val appearanceSection: String,
     val darkCinemaMode: String,
     val darkCinemaSubtitle: String,
@@ -132,7 +143,8 @@ val StringsEs = AppStrings(
     navSearch = "Buscar",
     navSettings = "Ajustes",
 
-    allCategories = "Todos",
+    categoriesHeader = "Categorías",
+    allCategories = "Todas",
     searchPlaceholder = "Buscar en esta sección...",
     itemsLabel = "elementos",
     sortRecent = "Recientes",
@@ -194,6 +206,16 @@ val StringsEs = AppStrings(
     expiresLabel = "Vence:",
 
     settingsTitle = "Ajustes",
+    updatesSection = "Actualizaciones de la app",
+    checkForUpdates = "Buscar actualizaciones",
+    checkingUpdates = "Buscando actualizaciones...",
+    upToDate = "Tienes la última versión instalada.",
+    updateAvailable = "Nueva versión disponible:",
+    downloadAndInstall = "Descargar e instalar",
+    downloadingUpdate = "Descargando actualización...",
+    installUpdate = "Instalar actualización",
+    allowInstallPermission = "Activa \"Instalar apps desconocidas\" para TiendaTV y vuelve a pulsar Instalar.",
+    updateError = "No se pudo verificar la actualización:",
     appearanceSection = "Apariencia e idioma",
     darkCinemaMode = "Modo Cine Oscuro",
     darkCinemaSubtitle = "Interfaz oscura ideal para ver TV de noche",
@@ -245,6 +267,7 @@ val StringsEn = AppStrings(
     navSearch = "Search",
     navSettings = "Settings",
 
+    categoriesHeader = "Categories",
     allCategories = "All",
     searchPlaceholder = "Search this section...",
     itemsLabel = "items",
@@ -307,6 +330,16 @@ val StringsEn = AppStrings(
     expiresLabel = "Expires:",
 
     settingsTitle = "Settings",
+    updatesSection = "App Updates",
+    checkForUpdates = "Check for Updates",
+    checkingUpdates = "Checking for updates...",
+    upToDate = "You are on the latest version.",
+    updateAvailable = "New version available:",
+    downloadAndInstall = "Download & Install",
+    downloadingUpdate = "Downloading update...",
+    installUpdate = "Install Update",
+    allowInstallPermission = "Enable \"Install unknown apps\" for TiendaTV, then press Install again.",
+    updateError = "Could not check for updates:",
     appearanceSection = "Appearance & Language",
     darkCinemaMode = "Dark Cinema Mode",
     darkCinemaSubtitle = "Deep dark theme designed for night TV viewing",

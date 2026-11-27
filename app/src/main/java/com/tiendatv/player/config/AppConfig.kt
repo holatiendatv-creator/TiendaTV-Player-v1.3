@@ -10,7 +10,13 @@ import com.tiendatv.player.BuildConfig
 object AppConfig {
     const val APP_NAME = "TiendaTV"
     const val APP_VERSION = BuildConfig.VERSION_NAME
+    const val VERSION_CODE = BuildConfig.VERSION_CODE
     const val USER_AGENT = "TiendaTVPlayer/1.0 (AndroidTV; ExoPlayer)"
+
+    const val VERSION_CHECK_URL =
+        "https://github.com/holatiendatv-creator/TiendaTV-Player-v1.3/releases/download/latest/version.json"
+    const val LATEST_APK_URL =
+        "https://github.com/holatiendatv-creator/TiendaTV-Player-v1.3/releases/download/latest/TiendaTV-latest.apk"
 
     /**
      * Optional pre-configured Xtream server URL (e.g., "http://tv.tiendatv.example:8080").
