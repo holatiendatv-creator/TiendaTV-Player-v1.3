@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -159,7 +160,7 @@ fun HomeScreen(
         label = "ambientBackdropScale"
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
         // Silky 900ms crossfading full-bleed backdrop
         val backdropUrl = activeHero?.backdropUrl.orEmpty()
         if (backdropUrl.isNotBlank()) {
@@ -189,7 +190,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
-                        0.0f to Color(0xF2000000),
+                        0.0f to Color(0xFF000000),
                         0.38f to Color(0xB3000000),
                         0.68f to Color(0x40000000),
                         1.0f to Color(0x18000000)

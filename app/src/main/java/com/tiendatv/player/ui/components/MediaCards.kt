@@ -327,8 +327,9 @@ fun ContinueWatchingCard(
 
     if (showRemoveMenu && onRemove != null) {
         val removeFocus = remember { FocusRequester() }
+        val openedAtMs = remember { System.currentTimeMillis() }
         LaunchedEffect(Unit) {
-            delay(50L)
+            delay(180L)
             try {
                 removeFocus.requestFocus()
             } catch (_: Exception) {
@@ -337,11 +338,11 @@ fun ContinueWatchingCard(
         Dialog(onDismissRequest = { showRemoveMenu = false }) {
             Column(
                 modifier = Modifier
-                    .width(340.dp)
+                    .width(360.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(Color(0xF5050507))
                     .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
-                    .padding(20.dp),
+                    .padding(22.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
@@ -364,14 +365,20 @@ fun ContinueWatchingCard(
                             .weight(1f)
                             .focusRequester(removeFocus),
                         onClick = {
-                            showRemoveMenu = false
-                            onRemove()
+                            if (System.currentTimeMillis() - openedAtMs > 450L) {
+                                showRemoveMenu = false
+                                onRemove()
+                            }
                         }
                     )
                     GlassPillButton(
                         text = "Cancelar",
                         darkGlass = true,
-                        onClick = { showRemoveMenu = false }
+                        onClick = {
+                            if (System.currentTimeMillis() - openedAtMs > 450L) {
+                                showRemoveMenu = false
+                            }
+                        }
                     )
                 }
             }

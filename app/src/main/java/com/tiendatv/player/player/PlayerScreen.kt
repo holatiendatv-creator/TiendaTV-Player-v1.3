@@ -47,6 +47,8 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Subtitles
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -139,9 +141,11 @@ fun PlayerScreen(
     var showChannelOverlay by remember { mutableStateOf(false) }
     var showZapBanner by remember { mutableStateOf(false) }
     var lastInteractionMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var showToolsDrawer by remember { mutableStateOf(false) }
     var showAudioDialog by remember { mutableStateOf(false) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
     val playPauseFocus = remember { FocusRequester() }
+    val audioButtonFocus = remember { FocusRequester() }
     val overlayFocus = remember { FocusRequester() }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -197,6 +201,18 @@ fun PlayerScreen(
         if (controlsVisible && !showChannelOverlay) {
             try {
                 playPauseFocus.requestFocus()
+            } catch (_: Exception) {
+            }
+        } else if (!controlsVisible) {
+            showToolsDrawer = false
+        }
+    }
+
+    LaunchedEffect(showToolsDrawer) {
+        if (showToolsDrawer && controlsVisible) {
+            delay(60L)
+            try {
+                audioButtonFocus.requestFocus()
             } catch (_: Exception) {
             }
         }
@@ -830,74 +846,134 @@ fun PlayerScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                     }
 
+                    // Centered Playback Controls (TiviMate style)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onKeyEvent { event ->
+                                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown && !showToolsDrawer) {
+                                    pokeControls()
+                                    showToolsDrawer = true
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (request.isLive && hasPrevChannel) {
-                                PlayerIconButton(
-                                    icon = Icons.Rounded.SkipPrevious,
-                                    contentDescription = strings.prevChannel,
-                                    onClick = {
-                                        pokeControls()
-                                        onPrevChannel()
-                                    }
-                                )
-                            }
-                            if (!request.isLive) {
-                                PlayerIconButton(
-                                    icon = Icons.Rounded.Replay10,
-                                    contentDescription = "-10s",
-                                    onClick = {
-                                        pokeControls()
-                                        controller.seekBy(-10_000L)
-                                    }
-                                )
-                            }
+                        if (request.isLive && hasPrevChannel) {
                             PlayerIconButton(
-                                icon = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                contentDescription = strings.playPause,
-                                modifier = Modifier.focusRequester(playPauseFocus),
-                                emphasized = true,
+                                icon = Icons.Rounded.SkipPrevious,
+                                contentDescription = strings.prevChannel,
                                 onClick = {
                                     pokeControls()
-                                    controller.togglePlayPause()
+                                    onPrevChannel()
                                 }
                             )
-                            if (!request.isLive) {
-                                PlayerIconButton(
-                                    icon = Icons.Rounded.Forward10,
-                                    contentDescription = "+10s",
-                                    onClick = {
-                                        pokeControls()
-                                        controller.seekBy(10_000L)
-                                    }
-                                )
-                            }
-                            if (request.isLive && hasNextChannel) {
-                                PlayerIconButton(
-                                    icon = Icons.Rounded.SkipNext,
-                                    contentDescription = strings.nextChannel,
-                                    onClick = {
-                                        pokeControls()
-                                        onNextChannel()
-                                    }
-                                )
-                            }
                         }
+                        if (!request.isLive) {
+                            PlayerIconButton(
+                                icon = Icons.Rounded.Replay10,
+                                contentDescription = "-10s",
+                                onClick = {
+                                    pokeControls()
+                                    controller.seekBy(-10_000L)
+                                }
+                            )
+                        }
+                        PlayerIconButton(
+                            icon = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = strings.playPause,
+                            modifier = Modifier.focusRequester(playPauseFocus),
+                            emphasized = true,
+                            onClick = {
+                                pokeControls()
+                                controller.togglePlayPause()
+                            }
+                        )
+                        if (!request.isLive) {
+                            PlayerIconButton(
+                                icon = Icons.Rounded.Forward10,
+                                contentDescription = "+10s",
+                                onClick = {
+                                    pokeControls()
+                                    controller.seekBy(10_000L)
+                                }
+                            )
+                        }
+                        if (request.isLive && hasNextChannel) {
+                            PlayerIconButton(
+                                icon = Icons.Rounded.SkipNext,
+                                contentDescription = strings.nextChannel,
+                                onClick = {
+                                    pokeControls()
+                                    onNextChannel()
+                                }
+                            )
+                        }
+                    }
 
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Subtle chevron indicator; D-pad Down reveals Audio / Subtitles / Aspect tools
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .tvFocusable(
+                                    shape = CircleShape,
+                                    focusScale = 1.1f,
+                                    focusBorderColor = Color.White,
+                                    onClick = {
+                                        pokeControls()
+                                        showToolsDrawer = !showToolsDrawer
+                                    }
+                                )
+                                .clip(CircleShape)
+                                .padding(horizontal = 12.dp, vertical = 2.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (showToolsDrawer) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color(0xBBFFFFFF),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = showToolsDrawer,
+                        enter = fadeIn(tween(180)),
+                        exit = fadeOut(tween(140))
+                    ) {
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .onKeyEvent { event ->
+                                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                                        pokeControls()
+                                        showToolsDrawer = false
+                                        try {
+                                            playPauseFocus.requestFocus()
+                                        } catch (_: Exception) {
+                                        }
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                },
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                         ) {
                             PlayerActionPill(
                                 label = strings.audioTracks,
                                 icon = Icons.Rounded.Audiotrack,
+                                modifier = Modifier.focusRequester(audioButtonFocus),
                                 onClick = {
                                     pokeControls()
                                     showAudioDialog = true
@@ -1142,10 +1218,11 @@ private fun PlayerIconButton(
 private fun PlayerActionPill(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .tvFocusable(
                 shape = RoundedCornerShape(12.dp),
                 focusBorderColor = Color(0xFFFF7A45),

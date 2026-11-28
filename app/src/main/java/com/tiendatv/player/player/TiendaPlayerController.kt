@@ -364,11 +364,21 @@ class TiendaPlayerController(
     fun selectAudioTrack(option: TrackOption) {
         if (isReleased) return
         val group = option.trackGroup ?: return
+        val wasPlaying = exoPlayer.isPlaying
+        val currentPos = exoPlayer.currentPosition.coerceAtLeast(0L)
         val override = TrackSelectionOverride(group, option.trackIndex)
         exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
             .buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
             .setOverrideForType(override)
             .build()
+        // Cleanly resync audio renderer on VOD streams so switching tracks never stutters or stalls
+        if (currentRequest?.isLive != true && currentPos > 0L) {
+            exoPlayer.seekTo(currentPos)
+        }
+        if (wasPlaying) {
+            exoPlayer.play()
+        }
         refreshTracks(exoPlayer.currentTracks)
     }
 
