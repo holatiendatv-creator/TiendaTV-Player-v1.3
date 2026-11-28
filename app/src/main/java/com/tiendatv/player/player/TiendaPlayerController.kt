@@ -250,6 +250,7 @@ class TiendaPlayerController(
         _uiState.update {
             it.copy(
                 isBuffering = true,
+                isEnded = false,
                 isReconnecting = false,
                 reconnectAttempt = 0,
                 errorMessage = null,

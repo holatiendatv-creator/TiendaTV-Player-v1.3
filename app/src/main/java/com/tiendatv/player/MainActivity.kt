@@ -3,6 +3,17 @@ package com.tiendatv.player
 import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.window.Dialog
+import com.tiendatv.player.ui.components.GlassPillButton
+import kotlinx.coroutines.delay
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -99,6 +110,15 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                     val key = ch?.epgChannelId?.ifBlank { ch.streamId }
                     if (key != null) state.currentProgramsMap[key]?.title else null
                 }
+                val seriesEpisodes = remember(state.activeSeriesDetails) {
+                    state.activeSeriesDetails?.seasons?.toSortedMap()?.values?.flatten().orEmpty()
+                }
+                val seriesEpIdx = remember(activePlayback.uid, state.activeSeries?.uid, seriesEpisodes) {
+                    val sUid = state.activeSeries?.uid
+                    if (sUid != null && activePlayback.type == MediaType.SERIES) {
+                        seriesEpisodes.indexOfFirst { "${sUid}_ep_${it.id}" == activePlayback.uid }
+                    } else -1
+                }
 
                 PlayerScreen(
                     request = activePlayback,
@@ -107,6 +127,10 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                     epgNowTitle = nowEpg,
                     hasPrevChannel = activePlayback.isLive && liveIdx > 0,
                     hasNextChannel = activePlayback.isLive && liveIdx >= 0 && liveIdx < liveList.lastIndex,
+                    hasPrevEpisode = !activePlayback.isLive && seriesEpIdx > 0,
+                    hasNextEpisode = !activePlayback.isLive && seriesEpIdx >= 0 && seriesEpIdx < seriesEpisodes.lastIndex,
+                    onPrevEpisode = { viewModel.switchSeriesEpisodeByOffset(-1) },
+                    onNextEpisode = { viewModel.switchSeriesEpisodeByOffset(1) },
                     liveCategories = state.liveSlice.categories,
                     selectedLiveCategoryId = state.liveSlice.selectedCategoryId,
                     liveChannels = liveList,
@@ -149,6 +173,30 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                         )
                     } else {
                         val activity = LocalContext.current as? Activity
+                        val railFocusRequester = remember { FocusRequester() }
+                        val homeFocusRequester = remember { FocusRequester() }
+                        var isRailFocused by remember { mutableStateOf(false) }
+                        var showExitDialog by remember { mutableStateOf(false) }
+
+                        BackHandler(enabled = state.activeSeries == null && !state.syncProgress.isSyncing) {
+                            when {
+                                showExitDialog -> showExitDialog = false
+                                state.selectedTab != NavTab.HOME -> {
+                                    if (!isRailFocused) {
+                                        try { railFocusRequester.requestFocus() } catch (_: Exception) {
+                                            viewModel.selectTab(NavTab.HOME)
+                                        }
+                                    } else {
+                                        viewModel.selectTab(NavTab.HOME)
+                                    }
+                                }
+                                isRailFocused -> {
+                                    try { homeFocusRequester.requestFocus() } catch (_: Exception) {}
+                                }
+                                else -> showExitDialog = true
+                            }
+                        }
+
                         if (state.syncProgress.isSyncing) {
                             CleanFullScreenSync(
                                 stage = state.syncProgress.stage,
@@ -175,13 +223,19 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                     onClearHistory = { viewModel.clearHistory() },
                                     onToggleFavorite = { viewModel.toggleFavorite(it) },
                                     onReloadCatalog = { viewModel.syncActiveProfile() },
-                                    onExitApp = { activity?.finish() }
+                                    onExitApp = { activity?.finish() },
+                                    primaryFocusRequester = homeFocusRequester
                                 )
                                 TiendaNavigationRail(
                                     selectedTab = state.selectedTab,
                                     strings = strings,
                                     onSelectTab = { viewModel.selectTab(it) },
                                     floatingOverlay = true,
+                                    railFocusRequester = railFocusRequester,
+                                    onExitRight = {
+                                        try { homeFocusRequester.requestFocus() } catch (_: Exception) {}
+                                    },
+                                    onFocusStateChanged = { isRailFocused = it },
                                     modifier = Modifier.align(Alignment.CenterStart)
                                 )
                             }
@@ -194,7 +248,9 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                     selectedTab = state.selectedTab,
                                     strings = strings,
                                     onSelectTab = { viewModel.selectTab(it) },
-                                    floatingOverlay = false
+                                    floatingOverlay = false,
+                                    railFocusRequester = railFocusRequester,
+                                    onFocusStateChanged = { isRailFocused = it }
                                 )
 
                                 Box(
@@ -219,6 +275,8 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                             SeriesDetailScreen(
                                                 series = openSeries,
                                                 details = state.activeSeriesDetails,
+                                                episodeHistory = state.activeSeriesHistory,
+                                                lastWatchedEpisodeUid = state.lastWatchedSeriesEpisodeUid,
                                                 isLoading = state.loadingSeriesDetails,
                                                 strings = strings,
                                                 onPlayEpisode = { ep ->
@@ -350,6 +408,51 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                    if (showExitDialog) {
+                        val cancelFocus = remember { FocusRequester() }
+                        LaunchedEffect(Unit) {
+                            delay(60L)
+                            try { cancelFocus.requestFocus() } catch (_: Exception) {}
+                        }
+                        Dialog(onDismissRequest = { showExitDialog = false }) {
+                            Column(
+                                modifier = Modifier
+                                    .width(340.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(Color(0xF5050507))
+                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                                    .padding(22.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text(
+                                    text = strings.exitAppPrompt,
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    GlassPillButton(
+                                        text = strings.cancel,
+                                        darkGlass = true,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .focusRequester(cancelFocus),
+                                        onClick = { showExitDialog = false }
+                                    )
+                                    GlassPillButton(
+                                        text = strings.exitApp,
+                                        primary = true,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { activity?.finish() }
+                                    )
                                 }
                             }
                         }

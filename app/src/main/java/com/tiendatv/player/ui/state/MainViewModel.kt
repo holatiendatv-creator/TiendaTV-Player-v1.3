@@ -76,6 +76,8 @@ data class MainUiState(
     // Series detail
     val activeSeries: MediaItemEntity? = null,
     val activeSeriesDetails: SeriesDetails? = null,
+    val activeSeriesHistory: Map<String, WatchHistoryEntity> = emptyMap(),
+    val lastWatchedSeriesEpisodeUid: String? = null,
     val loadingSeriesDetails: Boolean = false,
 
     // Global search
@@ -441,11 +443,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val profile = _state.value.activeProfile ?: return
         if (item.type == MediaType.SERIES && item.streamUrl.isBlank()) {
             _state.update {
-                it.copy(activeSeries = item, activeSeriesDetails = null, loadingSeriesDetails = true)
+                it.copy(
+                    activeSeries = item,
+                    activeSeriesDetails = null,
+                    activeSeriesHistory = emptyMap(),
+                    lastWatchedSeriesEpisodeUid = null,
+                    loadingSeriesDetails = true
+                )
             }
             viewModelScope.launch {
                 val details = repo.getSeriesDetails(profile, item.streamId)
-                _state.update { it.copy(activeSeriesDetails = details, loadingSeriesDetails = false) }
+                val histList = repo.getSeriesHistory(profile.id, item.uid)
+                _state.update {
+                    it.copy(
+                        activeSeriesDetails = details,
+                        activeSeriesHistory = histList.associateBy { h -> h.uid },
+                        lastWatchedSeriesEpisodeUid = histList.firstOrNull()?.uid,
+                        loadingSeriesDetails = false
+                    )
+                }
             }
         } else {
             viewModelScope.launch {
@@ -493,6 +509,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resumeHistory(entry: WatchHistoryEntity) {
+        val profile = _state.value.activeProfile
         _state.update {
             it.copy(
                 activePlayback = PlaybackRequest(
@@ -507,6 +524,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isLive = entry.type == MediaType.LIVE
                 )
             )
+        }
+        // If resuming a Series episode directly from Home, load series details in background for Prev/Next episode buttons
+        if (entry.type == MediaType.SERIES && profile != null && _state.value.activeSeries?.uid != entry.mediaUid) {
+            viewModelScope.launch {
+                val seriesItem = repo.getMediaItemByUid(entry.mediaUid) ?: return@launch
+                val details = repo.getSeriesDetails(profile, seriesItem.streamId)
+                val histList = repo.getSeriesHistory(profile.id, seriesItem.uid)
+                _state.update {
+                    it.copy(
+                        activeSeries = seriesItem,
+                        activeSeriesDetails = details,
+                        activeSeriesHistory = histList.associateBy { h -> h.uid },
+                        lastWatchedSeriesEpisodeUid = histList.firstOrNull()?.uid
+                    )
+                }
+            }
+        }
+    }
+
+    fun switchSeriesEpisodeByOffset(delta: Int) {
+        val playback = _state.value.activePlayback ?: return
+        if (playback.type != MediaType.SERIES) return
+        val series = _state.value.activeSeries ?: return
+        val details = _state.value.activeSeriesDetails ?: return
+        val allEpisodes = details.seasons.toSortedMap().values.flatten()
+        val idx = allEpisodes.indexOfFirst { "${series.uid}_ep_${it.id}" == playback.uid }
+        if (idx < 0) return
+        val nextIdx = (idx + delta).coerceIn(0, allEpisodes.lastIndex)
+        if (nextIdx != idx) {
+            playSeriesEpisode(series, allEpisodes[nextIdx])
         }
     }
 
@@ -549,6 +596,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun closePlayer() {
         TiendaPlayerController.releaseAnyActive()
         _state.update { it.copy(activePlayback = null) }
+        val profile = _state.value.activeProfile
+        val series = _state.value.activeSeries
+        if (profile != null && series != null) {
+            viewModelScope.launch {
+                val histList = repo.getSeriesHistory(profile.id, series.uid)
+                _state.update {
+                    it.copy(
+                        activeSeriesHistory = histList.associateBy { h -> h.uid },
+                        lastWatchedSeriesEpisodeUid = histList.firstOrNull()?.uid
+                    )
+                }
+            }
+        }
     }
 
     fun closeSeriesDetail() {

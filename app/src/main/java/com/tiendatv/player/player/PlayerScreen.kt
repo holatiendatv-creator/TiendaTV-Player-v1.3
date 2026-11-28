@@ -110,6 +110,10 @@ fun PlayerScreen(
     epgNowTitle: String?,
     hasPrevChannel: Boolean,
     hasNextChannel: Boolean,
+    hasPrevEpisode: Boolean = false,
+    hasNextEpisode: Boolean = false,
+    onPrevEpisode: () -> Unit = {},
+    onNextEpisode: () -> Unit = {},
     liveCategories: List<CategoryEntity> = emptyList(),
     selectedLiveCategoryId: String = "",
     liveChannels: List<MediaItemEntity> = emptyList(),
@@ -871,6 +875,15 @@ fun PlayerScreen(
                                     onPrevChannel()
                                 }
                             )
+                        } else if (!request.isLive && hasPrevEpisode) {
+                            PlayerIconButton(
+                                icon = Icons.Rounded.SkipPrevious,
+                                contentDescription = strings.prevEpisode,
+                                onClick = {
+                                    pokeControls()
+                                    onPrevEpisode()
+                                }
+                            )
                         }
                         if (!request.isLive) {
                             PlayerIconButton(
@@ -909,6 +922,15 @@ fun PlayerScreen(
                                 onClick = {
                                     pokeControls()
                                     onNextChannel()
+                                }
+                            )
+                        } else if (!request.isLive && hasNextEpisode) {
+                            PlayerIconButton(
+                                icon = Icons.Rounded.SkipNext,
+                                contentDescription = strings.nextEpisode,
+                                onClick = {
+                                    pokeControls()
+                                    onNextEpisode()
                                 }
                             )
                         }
@@ -997,6 +1019,63 @@ fun PlayerScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // Auto-Play Next Episode 5-Second Countdown Card
+        var autoNextCancelled by remember(request.uid) { mutableStateOf(false) }
+        var autoNextSeconds by remember(request.uid) { mutableIntStateOf(5) }
+        val showAutoNext = state.isEnded && !request.isLive && hasNextEpisode && !autoNextCancelled
+
+        LaunchedEffect(showAutoNext, request.uid) {
+            if (showAutoNext) {
+                autoNextSeconds = 5
+                while (autoNextSeconds > 0) {
+                    delay(1_000L)
+                    autoNextSeconds--
+                }
+                if (!autoNextCancelled) {
+                    onNextEpisode()
+                }
+            }
+        }
+
+        if (showAutoNext) {
+            val nextFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                delay(60L)
+                try { nextFocus.requestFocus() } catch (_: Exception) {}
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(32.dp)
+                    .width(320.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xF0050507))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "${strings.nextEpisodeIn} ${autoNextSeconds}s",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PlayerActionPill(
+                        label = strings.nextEpisode,
+                        icon = Icons.Rounded.SkipNext,
+                        modifier = Modifier.focusRequester(nextFocus),
+                        onClick = { onNextEpisode() }
+                    )
+                    PlayerActionPill(
+                        label = strings.cancel,
+                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                        onClick = { autoNextCancelled = true }
+                    )
                 }
             }
         }

@@ -174,6 +174,25 @@ interface MediaItemDao {
         includeAdult: Boolean = false,
         limit: Int = 100
     ): List<MediaItemEntity>
+
+    @Query(
+        """
+        SELECT m.* FROM media_items m
+        INNER JOIN watch_history w ON m.uid = w.mediaUid
+        WHERE w.profileId = :profileId
+          AND (:type = '' OR m.type = :type)
+          AND (:includeAdult = 1 OR m.isAdult = 0)
+        GROUP BY m.uid
+        ORDER BY MAX(w.lastWatchedAt) DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getHistoryItems(
+        profileId: Long,
+        type: String = "",
+        includeAdult: Boolean = false,
+        limit: Int = 100
+    ): List<MediaItemEntity>
 }
 
 @Dao
@@ -230,6 +249,9 @@ interface WatchHistoryDao {
 
     @Query("DELETE FROM watch_history WHERE uid = :uid")
     suspend fun deleteByUid(uid: String)
+
+    @Query("SELECT * FROM watch_history WHERE profileId = :profileId AND mediaUid = :mediaUid ORDER BY lastWatchedAt DESC")
+    suspend fun getSeriesHistory(profileId: Long, mediaUid: String): List<WatchHistoryEntity>
 }
 
 @Dao

@@ -18,8 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,11 +30,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tiendatv.player.data.local.CategoryEntity
+import com.tiendatv.player.data.repository.CatalogRepository
 import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 
@@ -77,24 +81,42 @@ fun CategorySidebar(
                 contentPadding = PaddingValues(bottom = 20.dp),
                 modifier = Modifier.fillMaxHeight()
             ) {
+                item(key = "cat_favorites") {
+                    CategorySidebarRow(
+                        label = strings.favorites,
+                        icon = Icons.Rounded.Favorite,
+                        selected = selectedCategoryId == CatalogRepository.CAT_FAVORITES,
+                        onClick = { onSelectCategory(CatalogRepository.CAT_FAVORITES) }
+                    )
+                }
+                item(key = "cat_history") {
+                    CategorySidebarRow(
+                        label = strings.historyCategory,
+                        icon = Icons.Rounded.History,
+                        selected = selectedCategoryId == CatalogRepository.CAT_HISTORY,
+                        onClick = { onSelectCategory(CatalogRepository.CAT_HISTORY) }
+                    )
+                }
                 item(key = "all_categories") {
                     CategorySidebarRow(
                         label = strings.allCategories,
+                        icon = if (selectedCategoryId.isBlank()) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
                         selected = selectedCategoryId.isBlank(),
                         onClick = { onSelectCategory("") }
                     )
                 }
                 items(categories, key = { it.uid }) { cat ->
+                    val isSelected = cat.categoryId == selectedCategoryId
                     CategorySidebarRow(
                         label = cat.name,
-                        selected = cat.categoryId == selectedCategoryId,
+                        icon = if (isSelected) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
+                        selected = isSelected,
                         onClick = { onSelectCategory(cat.categoryId) }
                     )
                 }
             }
         }
 
-        // Subtle hairline divider matching the Dark Cinema obsidian palette
         Box(
             modifier = Modifier
                 .fillMaxHeight()
@@ -107,6 +129,7 @@ fun CategorySidebar(
 @Composable
 private fun CategorySidebarRow(
     label: String,
+    icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit
 ) {
@@ -138,7 +161,7 @@ private fun CategorySidebarRow(
         horizontalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         Icon(
-            imageVector = if (selected) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
+            imageVector = icon,
             contentDescription = null,
             tint = textColor,
             modifier = Modifier.size(17.dp)

@@ -261,6 +261,11 @@ class CatalogRepository(
             categoryDao.getCategories(profileId, type, includeAdult)
         }
 
+    companion object {
+        const val CAT_FAVORITES = "__FAVORITES__"
+        const val CAT_HISTORY = "__HISTORY__"
+    }
+
     suspend fun queryCatalog(
         profileId: Long,
         type: String,
@@ -271,12 +276,23 @@ class CatalogRepository(
         offset: Int,
         limit: Int = AppConfig.CATALOG_PAGE_SIZE
     ): Pair<Int, List<MediaItemEntity>> = withContext(Dispatchers.IO) {
-        val total = mediaDao.countFiltered(profileId, type, categoryId, query.trim(), includeAdult)
+        val q = query.trim()
+        if (categoryId == CAT_FAVORITES || categoryId == CAT_HISTORY) {
+            val base = if (categoryId == CAT_FAVORITES) {
+                mediaDao.getFavoriteItems(profileId, type, includeAdult, 250)
+            } else {
+                mediaDao.getHistoryItems(profileId, type, includeAdult, 250)
+            }
+            val filtered = if (q.isBlank()) base else base.filter { it.name.contains(q, ignoreCase = true) }
+            val page = if (offset >= filtered.size) emptyList() else filtered.subList(offset, minOf(offset + limit, filtered.size))
+            return@withContext filtered.size to page
+        }
+        val total = mediaDao.countFiltered(profileId, type, categoryId, q, includeAdult)
         val items = mediaDao.queryCatalog(
             profileId = profileId,
             type = type,
             categoryId = categoryId,
-            query = query.trim(),
+            query = q,
             sortMode = sortMode.name,
             includeAdult = includeAdult,
             limit = limit,
@@ -337,5 +353,13 @@ class CatalogRepository(
 
     suspend fun removeHistoryItem(uid: String) = withContext(Dispatchers.IO) {
         historyDao.deleteByUid(uid)
+    }
+
+    suspend fun getSeriesHistory(profileId: Long, mediaUid: String): List<WatchHistoryEntity> = withContext(Dispatchers.IO) {
+        historyDao.getSeriesHistory(profileId, mediaUid)
+    }
+
+    suspend fun getMediaItemByUid(uid: String): MediaItemEntity? = withContext(Dispatchers.IO) {
+        mediaDao.getByUid(uid)
     }
 }

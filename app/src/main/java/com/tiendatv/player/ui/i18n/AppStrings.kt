@@ -14,6 +14,9 @@ data class AppStrings(
     // Top bar, category sidebar & sorting
     val categoriesHeader: String,
     val allCategories: String,
+    val historyCategory: String,
+    val exitAppPrompt: String,
+    val nextEpisodeIn: String,
     val searchPlaceholder: String,
     val itemsLabel: String,
     val sortRecent: String,
@@ -56,6 +59,9 @@ data class AppStrings(
     val episode: String,
     val episodes: String,
     val loadingSeries: String,
+    val resumeEpisode: String,
+    val prevEpisode: String,
+    val nextEpisode: String,
 
     // Search screen
     val searchTitle: String,
@@ -151,6 +157,9 @@ val StringsEs = AppStrings(
 
     categoriesHeader = "Categorías",
     allCategories = "Todas",
+    historyCategory = "Historial",
+    exitAppPrompt = "¿Salir de TiendaTV?",
+    nextEpisodeIn = "Siguiente episodio en",
     searchPlaceholder = "Buscar en esta sección...",
     itemsLabel = "elementos",
     sortRecent = "Recientes",
@@ -190,6 +199,9 @@ val StringsEs = AppStrings(
     episode = "Episodio",
     episodes = "Episodios",
     loadingSeries = "Cargando episodios...",
+    resumeEpisode = "Continuar",
+    prevEpisode = "Episodio anterior",
+    nextEpisode = "Siguiente episodio",
 
     searchTitle = "Buscar en todo el catálogo",
     searchMinChars = "Escribe al menos 2 letras para buscar en canales, películas y series.",
@@ -281,6 +293,9 @@ val StringsEn = AppStrings(
 
     categoriesHeader = "Categories",
     allCategories = "All",
+    historyCategory = "History",
+    exitAppPrompt = "Exit TiendaTV?",
+    nextEpisodeIn = "Next episode in",
     searchPlaceholder = "Search this section...",
     itemsLabel = "items",
     sortRecent = "Recent",
@@ -320,6 +335,9 @@ val StringsEn = AppStrings(
     episode = "Episode",
     episodes = "Episodes",
     loadingSeries = "Loading episodes...",
+    resumeEpisode = "Resume",
+    prevEpisode = "Previous Episode",
+    nextEpisode = "Next Episode",
 
     searchTitle = "Search Entire Catalog",
     searchMinChars = "Type at least 2 characters to search channels, movies, and series.",

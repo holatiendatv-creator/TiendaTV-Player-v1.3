@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.tiendatv.player.data.local.MediaItemEntity
+import com.tiendatv.player.data.local.WatchHistoryEntity
 import com.tiendatv.player.data.network.SeriesDetails
 import com.tiendatv.player.data.network.SeriesEpisode
 import com.tiendatv.player.ui.components.GlassPillButton
@@ -53,6 +55,8 @@ import com.tiendatv.player.ui.theme.LocalTiendaColors
 fun SeriesDetailScreen(
     series: MediaItemEntity,
     details: SeriesDetails?,
+    episodeHistory: Map<String, WatchHistoryEntity>,
+    lastWatchedEpisodeUid: String?,
     isLoading: Boolean,
     strings: AppStrings,
     onPlayEpisode: (SeriesEpisode) -> Unit,
@@ -64,24 +68,39 @@ fun SeriesDetailScreen(
     val seasonNumbers = remember(details) {
         details?.seasons?.keys?.toList()?.sorted() ?: emptyList()
     }
-    var selectedSeason by remember(seasonNumbers) {
-        mutableIntStateOf(seasonNumbers.firstOrNull() ?: 1)
+    val allEpisodes = remember(details) {
+        details?.seasons?.toSortedMap()?.values?.flatten().orEmpty()
+    }
+    val resumeTargetEpisode = remember(allEpisodes, lastWatchedEpisodeUid, series.uid) {
+        if (lastWatchedEpisodeUid != null) {
+            allEpisodes.firstOrNull { "${series.uid}_ep_${it.id}" == lastWatchedEpisodeUid }
+        } else {
+            null
+        }
+    }
+
+    var selectedSeason by remember(seasonNumbers, resumeTargetEpisode) {
+        mutableIntStateOf(
+            resumeTargetEpisode?.seasonNumber
+                ?: seasonNumbers.firstOrNull()
+                ?: 1
+        )
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 14.dp, end = 20.dp, start = 8.dp, bottom = 14.dp),
+            .padding(top = 14.dp, end = 20.dp, start = 12.dp, bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header banner
+        // Header banner with quick Resume Episode pill
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(210.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF111827))
-                .border(1.dp, c.glassBorder, RoundedCornerShape(24.dp))
+                .height(220.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF000000))
+                .border(1.dp, c.glassBorder, RoundedCornerShape(22.dp))
         ) {
             val bg = details?.backdropUrl?.ifBlank { series.backdropUrl.ifBlank { series.logoUrl } }
                 ?: series.backdropUrl.ifBlank { series.logoUrl }
@@ -98,7 +117,7 @@ fun SeriesDetailScreen(
                     .fillMaxSize()
                     .background(
                         Brush.horizontalGradient(
-                            colors = listOf(Color(0xE60B1220), Color(0x990B1220), Color(0x330B1220))
+                            colors = listOf(Color(0xF0000000), Color(0xA6000000), Color(0x28000000))
                         )
                     )
             )
@@ -108,13 +127,36 @@ fun SeriesDetailScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                GlassPillButton(
-                    text = strings.back,
-                    icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    onClick = onBack,
-                    horizontalPadding = 14.dp,
-                    verticalPadding = 8.dp
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    GlassPillButton(
+                        text = strings.back,
+                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                        darkGlass = true,
+                        onClick = onBack,
+                        horizontalPadding = 14.dp,
+                        verticalPadding = 8.dp
+                    )
+                    val quickEp = resumeTargetEpisode ?: allEpisodes.firstOrNull()
+                    if (quickEp != null) {
+                        val label = if (resumeTargetEpisode != null) {
+                            "${strings.resumeEpisode} S${quickEp.seasonNumber} E${quickEp.episodeNumber}"
+                        } else {
+                            "${strings.playNow} S${quickEp.seasonNumber} E${quickEp.episodeNumber}"
+                        }
+                        GlassPillButton(
+                            text = label,
+                            icon = Icons.Rounded.PlayArrow,
+                            primary = true,
+                            onClick = { onPlayEpisode(quickEp) },
+                            horizontalPadding = 16.dp,
+                            verticalPadding = 8.dp
+                        )
+                    }
+                }
+
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = details?.title?.ifBlank { series.name } ?: series.name,
@@ -163,7 +205,7 @@ fun SeriesDetailScreen(
                 }
             }
 
-            // Episodes list
+            // Episodes list with saved progress bars & last-watched highlight
             val episodes = details?.seasons?.get(selectedSeason).orEmpty()
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 24.dp),
@@ -171,22 +213,30 @@ fun SeriesDetailScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(episodes, key = { it.id }) { ep ->
+                    val epUid = "${series.uid}_ep_${ep.id}"
+                    val hist = episodeHistory[epUid]
+                    val isLastWatched = epUid == lastWatchedEpisodeUid
                     val shape = RoundedCornerShape(16.dp)
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .tvFocusable(shape = shape, focusScale = 1.02f, onClick = { onPlayEpisode(ep) })
                             .clip(shape)
-                            .background(c.glassSurface)
-                            .border(1.dp, c.glassBorder, shape)
+                            .background(if (isLastWatched) c.accentSoft else c.glassSurface)
+                            .border(
+                                1.dp,
+                                if (isLastWatched) c.accent.copy(alpha = 0.65f) else c.glassBorder,
+                                shape
+                            )
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(118.dp)
-                                .height(68.dp)
+                                .width(124.dp)
+                                .height(70.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(c.pillBackground),
                             contentAlignment = Alignment.Center
@@ -209,16 +259,49 @@ fun SeriesDetailScreen(
                                     .background(Color(0x99000000))
                                     .padding(4.dp)
                             )
+                            if (hist != null && hist.progressFraction > 0f) {
+                                LinearProgressIndicator(
+                                    progress = { hist.progressFraction },
+                                    color = c.accent,
+                                    trackColor = Color(0x66000000),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                )
+                            }
                         }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "S${ep.seasonNumber} E${ep.episodeNumber} • ${ep.title}",
-                                color = c.textPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "S${ep.seasonNumber} E${ep.episodeNumber} • ${ep.title}",
+                                    color = c.textPrimary,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                if (isLastWatched) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(c.accent)
+                                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = strings.resumeEpisode,
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
                             if (ep.plot.isNotBlank()) {
                                 Text(
                                     text = ep.plot,

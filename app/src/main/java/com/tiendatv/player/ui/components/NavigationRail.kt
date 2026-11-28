@@ -35,9 +35,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -58,10 +65,8 @@ enum class NavTab {
 }
 
 /**
- * Navigation rail supporting two modes:
- * - floatingOverlay = true (Home): floats seamlessly over the 100% edge-to-edge full-bleed backdrop
- *   with a soft dark fade and zero screen push/shift or vertical gap.
- * - floatingOverlay = false (Catalog tabs): sits cleanly side-by-side with Categories so nothing overlaps.
+ * Navigation rail with explicit D-pad Right handoff (zero focus trap on floating Home overlay)
+ * and FocusRequester hook for TiviMate-style Back navigation.
  */
 @Composable
 fun TiendaNavigationRail(
@@ -69,7 +74,10 @@ fun TiendaNavigationRail(
     strings: AppStrings,
     onSelectTab: (NavTab) -> Unit,
     modifier: Modifier = Modifier,
-    floatingOverlay: Boolean = false
+    floatingOverlay: Boolean = false,
+    railFocusRequester: FocusRequester? = null,
+    onExitRight: (() -> Unit)? = null,
+    onFocusStateChanged: ((Boolean) -> Unit)? = null
 ) {
     val c = LocalTiendaColors.current
     var isRailFocused by remember { mutableStateOf(false) }
@@ -119,7 +127,24 @@ fun TiendaNavigationRail(
             .fillMaxHeight()
             .width(railWidth)
             .then(bgModifier)
-            .onFocusChanged { isRailFocused = it.hasFocus }
+            .onFocusChanged {
+                val focused = it.hasFocus
+                if (focused != isRailFocused) {
+                    isRailFocused = focused
+                    onFocusStateChanged?.invoke(focused)
+                }
+            }
+            .onPreviewKeyEvent { event ->
+                if (onExitRight != null &&
+                    event.type == KeyEventType.KeyDown &&
+                    event.key == Key.DirectionRight
+                ) {
+                    onExitRight()
+                    true
+                } else {
+                    false
+                }
+            }
     ) {
         Column(
             modifier = Modifier
@@ -186,9 +211,14 @@ fun TiendaNavigationRail(
                     animationSpec = tween(120),
                     label = "railItemTint"
                 )
+                val itemMod = if (selected && railFocusRequester != null) {
+                    Modifier.focusRequester(railFocusRequester)
+                } else {
+                    Modifier
+                }
 
                 Row(
-                    modifier = Modifier
+                    modifier = itemMod
                         .fillMaxWidth()
                         .tvFocusable(
                             shape = shape,

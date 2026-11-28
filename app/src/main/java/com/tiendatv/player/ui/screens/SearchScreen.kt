@@ -24,9 +24,14 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -67,13 +72,19 @@ fun SearchScreen(
             fontWeight = FontWeight.Bold
         )
 
-        // Search input box
+        // Search input box with crisp TV focus border
+        var isSearchFocused by remember { mutableStateOf(false) }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(c.glassSurfaceElevated)
-                .border(1.dp, c.glassBorder, RoundedCornerShape(16.dp))
+                .border(
+                    width = if (isSearchFocused) 2.dp else 1.dp,
+                    color = if (isSearchFocused) c.accent else c.glassBorder,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .onFocusChanged { isSearchFocused = it.hasFocus }
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)

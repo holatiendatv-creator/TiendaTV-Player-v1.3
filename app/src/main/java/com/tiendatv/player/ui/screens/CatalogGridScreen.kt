@@ -41,6 +41,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.tiendatv.player.data.local.CategoryEntity
 import com.tiendatv.player.data.local.MediaItemEntity
+import com.tiendatv.player.data.repository.CatalogRepository
 import com.tiendatv.player.data.repository.SortMode
 import com.tiendatv.player.ui.components.CatalogTopBar
 import com.tiendatv.player.ui.components.CategorySidebar
@@ -103,10 +105,11 @@ fun CatalogGridScreen(
     val heroItem = settledFocusedItem ?: items.firstOrNull()
 
     val selectedCatName = remember(categories, selectedCategoryId, strings) {
-        if (selectedCategoryId.isBlank()) {
-            strings.allCategories
-        } else {
-            categories.firstOrNull { it.categoryId == selectedCategoryId }?.name ?: strings.allCategories
+        when (selectedCategoryId) {
+            "" -> strings.allCategories
+            CatalogRepository.CAT_FAVORITES -> strings.favorites
+            CatalogRepository.CAT_HISTORY -> strings.historyCategory
+            else -> categories.firstOrNull { it.categoryId == selectedCategoryId }?.name ?: strings.allCategories
         }
     }
     val formattedCount = remember(totalCount) {
@@ -280,12 +283,18 @@ fun CatalogGridScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        var isSearchFocused by remember { mutableStateOf(false) }
                         Row(
                             modifier = Modifier
                                 .width(200.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xB3000000))
-                                .border(1.dp, c.glassBorder, RoundedCornerShape(12.dp))
+                                .border(
+                                    width = if (isSearchFocused) 2.dp else 1.dp,
+                                    color = if (isSearchFocused) c.accent else c.glassBorder,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .onFocusChanged { isSearchFocused = it.hasFocus }
                                 .padding(horizontal = 10.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)

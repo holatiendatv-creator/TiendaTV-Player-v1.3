@@ -43,6 +43,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -95,7 +97,8 @@ fun HomeScreen(
     onClearHistory: () -> Unit,
     onToggleFavorite: (MediaItemEntity) -> Unit,
     onReloadCatalog: () -> Unit,
-    onExitApp: () -> Unit
+    onExitApp: () -> Unit,
+    primaryFocusRequester: FocusRequester? = null
 ) {
     val c = LocalTiendaColors.current
     val lastLiveEntry = remember(recentlyWatched) {
@@ -306,6 +309,7 @@ fun HomeScreen(
                                 text = strings.playNow,
                                 icon = Icons.Rounded.PlayArrow,
                                 primary = true,
+                                modifier = if (primaryFocusRequester != null) Modifier.focusRequester(primaryFocusRequester) else Modifier,
                                 onClick = {
                                     when {
                                         mediaRef != null -> onOpenMedia(mediaRef)
@@ -340,6 +344,7 @@ fun HomeScreen(
                             GlassPillButton(
                                 text = strings.reloadPortal,
                                 primary = true,
+                                modifier = if (primaryFocusRequester != null) Modifier.focusRequester(primaryFocusRequester) else Modifier,
                                 onClick = onReloadCatalog
                             )
                         }
