@@ -147,6 +147,8 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                 )
             } else {
                 FrostedCanvasBackground(modifier = Modifier.safeDrawingPadding()) {
+                    val activity = LocalContext.current as? Activity
+                    var showExitDialog by remember { mutableStateOf(false) }
                     val showLogin = !state.isInitializing && (state.activeProfile == null || state.showAddProfileModal)
                     if (state.isInitializing) {
                         Box(
@@ -172,11 +174,9 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                             } else null
                         )
                     } else {
-                        val activity = LocalContext.current as? Activity
                         val railFocusRequester = remember { FocusRequester() }
                         val homeFocusRequester = remember { FocusRequester() }
                         var isRailFocused by remember { mutableStateOf(false) }
-                        var showExitDialog by remember { mutableStateOf(false) }
 
                         BackHandler(enabled = state.activeSeries == null && !state.syncProgress.isSyncing) {
                             when {
