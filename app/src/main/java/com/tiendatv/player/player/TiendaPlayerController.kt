@@ -99,6 +99,7 @@ class TiendaPlayerController(
                     _uiState.update {
                         it.copy(
                             isBuffering = false,
+                            isEnded = false,
                             isReconnecting = false,
                             reconnectAttempt = 0,
                             errorMessage = null,
@@ -112,7 +113,7 @@ class TiendaPlayerController(
                     if (req != null && req.isLive) {
                         scheduleReconnect("Stream ended unexpectedly")
                     } else {
-                        _uiState.update { it.copy(isBuffering = false, isPlaying = false) }
+                        _uiState.update { it.copy(isBuffering = false, isPlaying = false, isEnded = true) }
                         persistProgressNow()
                     }
                 }

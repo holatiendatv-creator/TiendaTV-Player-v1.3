@@ -13,8 +13,8 @@ android {
         applicationId = "com.tiendatv.player"
         minSdk = 21
         targetSdk = 35
-        versionCode = 16
-        versionName = "2.5.0"
+        versionCode = 17
+        versionName = "2.5.1"
 
         // Pre-configured default Xtream Codes server URL (editable here or in AppConfig.kt)
         buildConfigField("String", "DEFAULT_XTREAM_SERVER", "\"http://tiendalatinatv.com\"")

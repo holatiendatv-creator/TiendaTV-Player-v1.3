@@ -91,6 +91,7 @@ data class TrackOption(
 data class PlayerUiState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = true,
+    val isEnded: Boolean = false,
     val isReconnecting: Boolean = false,
     val reconnectAttempt: Int = 0,
     val maxReconnectAttempts: Int = 5,
