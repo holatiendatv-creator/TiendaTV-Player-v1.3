@@ -311,7 +311,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Image(
-                        painter = painterResource(id = R.mipmap.ic_launcher),
+                        painter = painterResource(id = R.drawable.ic_launcher_fg),
                         contentDescription = "TiendaTV",
                         modifier = Modifier
                             .size(44.dp)
@@ -388,7 +388,7 @@ fun HomeScreen(
                     ) {
                         // Beat 3: Clean translucent dark bar with compact title + description
                         Box(modifier = Modifier.weight(1f)) {
-                            AnimatedVisibility(
+                            androidx.compose.animation.AnimatedVisibility(
                                 visible = descVisible,
                                 enter = fadeIn(tween(340)) + slideInVertically(tween(340)) { it / 4 },
                                 exit = fadeOut(tween(180))
