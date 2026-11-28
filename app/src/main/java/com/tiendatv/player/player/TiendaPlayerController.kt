@@ -12,6 +12,7 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.upstream.DefaultAllocator
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -175,17 +176,19 @@ class TiendaPlayerController(
             )
 
         val loadControl = DefaultLoadControl.Builder()
+            .setAllocator(DefaultAllocator(true, 64 * 1024))
             .setBufferDurationsMs(
                 bufferPreset.minBufferMs,
                 bufferPreset.maxBufferMs,
                 bufferPreset.bufferForPlaybackMs,
                 bufferPreset.bufferForPlaybackAfterRebufferMs
             )
+            .setBackBuffer(15_000, true)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
         val dataSourceFactory = OkHttpDataSource.Factory(NetworkModule.streamClient)
-            .setUserAgent(AppConfig.USER_AGENT)
+            .setUserAgent(AppConfig.STREAM_USER_AGENT)
 
         exoPlayer = ExoPlayer.Builder(context)
             .setRenderersFactory(renderersFactory)

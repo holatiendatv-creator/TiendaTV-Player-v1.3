@@ -285,14 +285,7 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                                 onBack = { viewModel.closeSeriesDetail() }
                                             )
                                         } else {
-                                            AnimatedContent(
-                                                targetState = state.selectedTab,
-                                                transitionSpec = {
-                                                    fadeIn(tween(200)) togetherWith fadeOut(tween(150))
-                                                },
-                                                label = "tabTransition"
-                                            ) { tab ->
-                                                when (tab) {
+                                            when (state.selectedTab) {
                                                     NavTab.HOME -> HomeScreen(
                                                         counts = state.counts,
                                                         heroItem = state.heroItem,
@@ -405,7 +398,6 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                                         onOpenAddProfile = { viewModel.openAddProfileModal(true) }
                                                     )
                                                 }
-                                            }
                                         }
                                     }
                                 }

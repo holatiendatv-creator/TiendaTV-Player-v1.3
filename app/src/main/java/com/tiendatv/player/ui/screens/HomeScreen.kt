@@ -151,17 +151,7 @@ fun HomeScreen(
         )
     }
 
-    // Subtle Apple TV-style ambient breathing drift on the full-bleed backdrop
-    val driftTransition = rememberInfiniteTransition(label = "heroDrift")
-    val ambientScale by driftTransition.animateFloat(
-        initialValue = 1.00f,
-        targetValue = 1.045f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 16_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "ambientBackdropScale"
-    )
+
 
     Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
         // Silky 900ms crossfading full-bleed backdrop
@@ -169,7 +159,7 @@ fun HomeScreen(
         if (backdropUrl.isNotBlank()) {
             Crossfade(
                 targetState = backdropUrl,
-                animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+                animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
                 label = "homeZenBackdrop",
                 modifier = Modifier.fillMaxSize()
             ) { url ->
@@ -177,12 +167,7 @@ fun HomeScreen(
                     model = url,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = ambientScale
-                            scaleY = ambientScale
-                        }
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }

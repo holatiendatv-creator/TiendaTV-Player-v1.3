@@ -2,7 +2,6 @@ package com.tiendatv.player.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -18,7 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -66,16 +65,13 @@ fun Modifier.tvFocusable(
         label = "tvFocusBorderColor"
     )
 
-    val borderWidth by animateDpAsState(
-        targetValue = if (isFocused) focusBorderWidth else 0.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-        label = "tvFocusBorderWidth"
-    )
-
     this
-        .scale(scale)
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
         .border(
-            width = borderWidth,
+            width = focusBorderWidth,
             color = borderColor,
             shape = shape
         )

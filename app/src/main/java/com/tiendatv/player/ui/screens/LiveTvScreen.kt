@@ -140,7 +140,7 @@ fun LiveTvScreen(
             previewPlayer.stop()
             return@LaunchedEffect
         }
-        delay(600L)
+        delay(900L)
         previewPlayer.setMediaItem(MediaItem.fromUri(url))
         previewPlayer.prepare()
         previewPlayer.playWhenReady = true
@@ -221,6 +221,7 @@ fun LiveTvScreen(
                                     onFocused = { onFocusChannel(channel) },
                                     onClick = {
                                         previewPlayer.stop()
+                                        previewPlayer.clearMediaItems()
                                         onPlayChannel(channel)
                                     }
                                 )
@@ -320,6 +321,7 @@ fun LiveTvScreen(
                                     onClick = {
                                         if (target != null) {
                                             previewPlayer.stop()
+                                            previewPlayer.clearMediaItems()
                                             onPlayChannel(target)
                                         }
                                     }
@@ -401,6 +403,7 @@ fun LiveTvScreen(
                                         verticalPadding = 7.dp,
                                         onClick = {
                                             previewPlayer.stop()
+                                            previewPlayer.clearMediaItems()
                                             onPlayChannel(target)
                                         }
                                     )
