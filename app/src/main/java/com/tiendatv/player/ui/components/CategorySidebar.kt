@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,7 +51,7 @@ fun CategorySidebar(
 ) {
     val c = LocalTiendaColors.current
     val listState = rememberLazyListState()
-    val sidebarBg = if (c.isDark) Color(0xFF050507) else c.glassRail
+    val sidebarBg = if (c.isDark) Color(0xD90A0D14) else c.glassRail
 
     Row(
         modifier = modifier
@@ -95,6 +96,14 @@ fun CategorySidebar(
                         icon = Icons.Rounded.History,
                         selected = selectedCategoryId == CatalogRepository.CAT_HISTORY,
                         onClick = { onSelectCategory(CatalogRepository.CAT_HISTORY) }
+                    )
+                }
+                item(key = "cat_recent") {
+                    CategorySidebarRow(
+                        label = strings.recentlyAddedCategory,
+                        icon = Icons.Rounded.NewReleases,
+                        selected = selectedCategoryId == CatalogRepository.CAT_RECENTLY_ADDED,
+                        onClick = { onSelectCategory(CatalogRepository.CAT_RECENTLY_ADDED) }
                     )
                 }
                 item(key = "all_categories") {

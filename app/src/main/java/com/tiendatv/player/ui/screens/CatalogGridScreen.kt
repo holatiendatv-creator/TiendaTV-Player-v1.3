@@ -109,6 +109,7 @@ fun CatalogGridScreen(
             "" -> strings.allCategories
             CatalogRepository.CAT_FAVORITES -> strings.favorites
             CatalogRepository.CAT_HISTORY -> strings.historyCategory
+            CatalogRepository.CAT_RECENTLY_ADDED -> strings.recentlyAddedCategory
             else -> categories.firstOrNull { it.categoryId == selectedCategoryId }?.name ?: strings.allCategories
         }
     }

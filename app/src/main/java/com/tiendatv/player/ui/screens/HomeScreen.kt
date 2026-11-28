@@ -114,7 +114,8 @@ fun HomeScreen(
         }.distinctBy { it.uid }
         val rich = mixed.filter { it.backdropUrl.isNotBlank() || it.logoUrl.isNotBlank() }
         val finalList = if (rich.isNotEmpty()) rich else mixed
-        if (finalList.isNotEmpty()) finalList else listOfNotNull(heroItem)
+        val base = if (finalList.isNotEmpty()) finalList else listOfNotNull(heroItem)
+        base.shuffled()
     }
 
     var currentIdx by remember(showcaseItems) { mutableIntStateOf(0) }
@@ -129,11 +130,20 @@ fun HomeScreen(
     val previousItem = showcaseItems.getOrNull(previousIdx)
     val transitionStyle = currentIdx % 5
 
-    // Auto-rotate showcase every 8.5 seconds with choreographed reveal
+    // Auto-rotate showcase every 7 seconds with 2-second choreographed poster + description reveal
     LaunchedEffect(showcaseItems) {
+        if (showcaseItems.isNotEmpty()) {
+            // Initial slide: show backdrop first, then poster & description at ~2s
+            posterVisible = false
+            descVisible = false
+            delay(2_000L)
+            posterVisible = true
+            delay(350L)
+            descVisible = true
+        }
         if (showcaseItems.size > 1) {
             while (true) {
-                delay(10_000L)
+                delay(4_650L) // Total 7s per slide (2s reveal + 4.65s dwell + ~0.35s fade-out)
                 posterVisible = false
                 descVisible = false
                 delay(180L)
@@ -144,11 +154,10 @@ fun HomeScreen(
                     targetValue = 1f,
                     animationSpec = tween(durationMillis = 1150, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f))
                 )
-                // Beat 2: Mini poster appears first
-                delay(200L)
+                // Wait to reach ~2s from transition start, then reveal poster followed by description card
+                delay(850L)
                 posterVisible = true
-                // Beat 3: Title & description glides in right after
-                delay(300L)
+                delay(350L)
                 descVisible = true
             }
         }

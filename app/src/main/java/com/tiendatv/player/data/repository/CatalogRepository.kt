@@ -264,6 +264,7 @@ class CatalogRepository(
     companion object {
         const val CAT_FAVORITES = "__FAVORITES__"
         const val CAT_HISTORY = "__HISTORY__"
+        const val CAT_RECENTLY_ADDED = "__RECENT__"
     }
 
     suspend fun queryCatalog(
@@ -277,11 +278,11 @@ class CatalogRepository(
         limit: Int = AppConfig.CATALOG_PAGE_SIZE
     ): Pair<Int, List<MediaItemEntity>> = withContext(Dispatchers.IO) {
         val q = query.trim()
-        if (categoryId == CAT_FAVORITES || categoryId == CAT_HISTORY) {
-            val base = if (categoryId == CAT_FAVORITES) {
-                mediaDao.getFavoriteItems(profileId, type, includeAdult, 250)
-            } else {
-                mediaDao.getHistoryItems(profileId, type, includeAdult, 250)
+        if (categoryId == CAT_FAVORITES || categoryId == CAT_HISTORY || categoryId == CAT_RECENTLY_ADDED) {
+            val base = when (categoryId) {
+                CAT_FAVORITES -> mediaDao.getFavoriteItems(profileId, type, includeAdult, 250)
+                CAT_HISTORY -> mediaDao.getHistoryItems(profileId, type, includeAdult, 250)
+                else -> mediaDao.getFeatured(profileId, type, includeAdult, 30)
             }
             val filtered = if (q.isBlank()) base else base.filter { it.name.contains(q, ignoreCase = true) }
             val page = if (offset >= filtered.size) emptyList() else filtered.subList(offset, minOf(offset + limit, filtered.size))

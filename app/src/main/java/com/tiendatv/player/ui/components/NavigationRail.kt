@@ -114,7 +114,7 @@ fun TiendaNavigationRail(
             )
         }
     } else {
-        Modifier.background(if (c.isDark) Color(0xFF000000) else c.glassRail)
+        Modifier.background(if (c.isDark) Color(0xCC0A0D14) else c.glassRail)
     }
 
     val items = listOf(
