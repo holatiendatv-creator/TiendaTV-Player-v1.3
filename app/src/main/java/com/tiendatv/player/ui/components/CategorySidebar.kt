@@ -3,8 +3,8 @@ package com.tiendatv.player.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -41,6 +41,10 @@ import com.tiendatv.player.data.repository.CatalogRepository
 import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 
+/**
+ * Floating frosted-glass pill Categories sidebar matching HomeScreen's open glass aesthetic:
+ * No solid vertical slate slab or hard divider line—pills float cleanly over the ambient backdrop.
+ */
 @Composable
 fun CategorySidebar(
     categories: List<CategoryEntity>,
@@ -51,87 +55,73 @@ fun CategorySidebar(
 ) {
     val c = LocalTiendaColors.current
     val listState = rememberLazyListState()
-    val sidebarBg = if (c.isDark) Color(0xD90A0D14) else c.glassRail
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(180.dp)
-            .background(sidebarBg)
+            .width(184.dp)
+            .background(if (c.isDark) Color.Transparent else c.glassRail)
+            .padding(top = 18.dp, bottom = 12.dp, start = 6.dp, end = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .padding(top = 18.dp, bottom = 12.dp, start = 10.dp, end = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = strings.categoriesHeader.uppercase(),
-                color = c.textSecondary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.2.sp,
-                maxLines = 1,
-                modifier = Modifier.padding(horizontal = 10.dp)
-            )
+        Text(
+            text = strings.categoriesHeader.uppercase(),
+            color = c.textSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
 
-            LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                contentPadding = PaddingValues(bottom = 20.dp),
-                modifier = Modifier.fillMaxHeight()
-            ) {
-                item(key = "cat_favorites") {
-                    CategorySidebarRow(
-                        label = strings.favorites,
-                        icon = Icons.Rounded.Favorite,
-                        selected = selectedCategoryId == CatalogRepository.CAT_FAVORITES,
-                        onClick = { onSelectCategory(CatalogRepository.CAT_FAVORITES) }
-                    )
-                }
-                item(key = "cat_history") {
-                    CategorySidebarRow(
-                        label = strings.historyCategory,
-                        icon = Icons.Rounded.History,
-                        selected = selectedCategoryId == CatalogRepository.CAT_HISTORY,
-                        onClick = { onSelectCategory(CatalogRepository.CAT_HISTORY) }
-                    )
-                }
-                item(key = "cat_recent") {
-                    CategorySidebarRow(
-                        label = strings.recentlyAddedCategory,
-                        icon = Icons.Rounded.NewReleases,
-                        selected = selectedCategoryId == CatalogRepository.CAT_RECENTLY_ADDED,
-                        onClick = { onSelectCategory(CatalogRepository.CAT_RECENTLY_ADDED) }
-                    )
-                }
-                item(key = "all_categories") {
-                    CategorySidebarRow(
-                        label = strings.allCategories,
-                        icon = if (selectedCategoryId.isBlank()) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
-                        selected = selectedCategoryId.isBlank(),
-                        onClick = { onSelectCategory("") }
-                    )
-                }
-                items(categories, key = { it.uid }) { cat ->
-                    val isSelected = cat.categoryId == selectedCategoryId
-                    CategorySidebarRow(
-                        label = cat.name,
-                        icon = if (isSelected) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
-                        selected = isSelected,
-                        onClick = { onSelectCategory(cat.categoryId) }
-                    )
-                }
+        LazyColumn(
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(bottom = 20.dp),
+            modifier = Modifier.fillMaxHeight()
+        ) {
+            item(key = "cat_favorites") {
+                CategorySidebarRow(
+                    label = strings.favorites,
+                    icon = Icons.Rounded.Favorite,
+                    selected = selectedCategoryId == CatalogRepository.CAT_FAVORITES,
+                    onClick = { onSelectCategory(CatalogRepository.CAT_FAVORITES) }
+                )
+            }
+            item(key = "cat_history") {
+                CategorySidebarRow(
+                    label = strings.historyCategory,
+                    icon = Icons.Rounded.History,
+                    selected = selectedCategoryId == CatalogRepository.CAT_HISTORY,
+                    onClick = { onSelectCategory(CatalogRepository.CAT_HISTORY) }
+                )
+            }
+            item(key = "cat_recent") {
+                CategorySidebarRow(
+                    label = strings.recentlyAddedCategory,
+                    icon = Icons.Rounded.NewReleases,
+                    selected = selectedCategoryId == CatalogRepository.CAT_RECENTLY_ADDED,
+                    onClick = { onSelectCategory(CatalogRepository.CAT_RECENTLY_ADDED) }
+                )
+            }
+            item(key = "all_categories") {
+                CategorySidebarRow(
+                    label = strings.allCategories,
+                    icon = if (selectedCategoryId.isBlank()) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
+                    selected = selectedCategoryId.isBlank(),
+                    onClick = { onSelectCategory("") }
+                )
+            }
+            items(categories, key = { it.uid }) { cat ->
+                val isSelected = cat.categoryId == selectedCategoryId
+                CategorySidebarRow(
+                    label = cat.name,
+                    icon = if (isSelected) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
+                    selected = isSelected,
+                    onClick = { onSelectCategory(cat.categoryId) }
+                )
             }
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(1.dp)
-                .background(c.glassBorder)
-        )
     }
 }
 
@@ -143,15 +133,24 @@ private fun CategorySidebarRow(
     onClick: () -> Unit
 ) {
     val c = LocalTiendaColors.current
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(12.dp)
     val bgColor by animateColorAsState(
-        targetValue = if (selected) c.accentSoft else Color.Transparent,
-        animationSpec = tween(150),
+        targetValue = when {
+            selected -> c.accentSoft
+            c.isDark -> Color(0x8C10131C)
+            else -> c.glassSurface
+        },
+        animationSpec = tween(140),
         label = "catRowBg"
     )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) c.accent.copy(alpha = 0.55f) else Color(0x20FFFFFF),
+        animationSpec = tween(140),
+        label = "catRowBorder"
+    )
     val textColor by animateColorAsState(
-        targetValue = if (selected) c.accent else c.textSecondary,
-        animationSpec = tween(150),
+        targetValue = if (selected) c.accent else if (c.isDark) Color(0xE6FFFFFF) else c.textPrimary,
+        animationSpec = tween(140),
         label = "catRowText"
     )
 
@@ -160,12 +159,13 @@ private fun CategorySidebarRow(
             .fillMaxWidth()
             .tvFocusable(
                 shape = shape,
-                focusScale = 1.015f,
+                focusScale = 1.02f,
                 onClick = onClick
             )
             .clip(shape)
             .background(bgColor)
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+            .border(1.dp, if (c.isDark) borderColor else c.glassBorder, shape)
+            .padding(horizontal = 11.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(9.dp)
     ) {

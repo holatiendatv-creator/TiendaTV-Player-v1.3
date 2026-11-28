@@ -3,13 +3,10 @@ package com.tiendatv.player.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import com.tiendatv.player.R
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,13 +40,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tiendatv.player.R
 import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 
@@ -69,8 +68,8 @@ enum class NavTab {
 }
 
 /**
- * Navigation rail with explicit D-pad Right handoff (zero focus trap on floating Home overlay)
- * and FocusRequester hook for TiviMate-style Back navigation.
+ * Floating frosted-glass pill navigation rail matching HomeScreen's exact button style:
+ * No solid vertical slab or hard divider line—clean floating glass pills over the dark cinema canvas.
  */
 @Composable
 fun TiendaNavigationRail(
@@ -87,35 +86,10 @@ fun TiendaNavigationRail(
     var isRailFocused by remember { mutableStateOf(false) }
 
     val railWidth by animateDpAsState(
-        targetValue = if (isRailFocused) {
-            if (floatingOverlay) 168.dp else 136.dp
-        } else {
-            52.dp
-        },
-        animationSpec = tween(durationMillis = 140),
+        targetValue = if (isRailFocused) 144.dp else 56.dp,
+        animationSpec = tween(durationMillis = 130),
         label = "railWidth"
     )
-
-    val bgModifier = if (floatingOverlay) {
-        if (isRailFocused) {
-            Modifier.background(
-                Brush.horizontalGradient(
-                    0.0f to Color(0xF5000000),
-                    0.78f to Color(0xE0000000),
-                    1.0f to Color(0x00000000)
-                )
-            )
-        } else {
-            Modifier.background(
-                Brush.horizontalGradient(
-                    0.0f to Color(0xCC000000),
-                    1.0f to Color(0x00000000)
-                )
-            )
-        }
-    } else {
-        Modifier.background(if (c.isDark) Color(0xCC0A0D14) else c.glassRail)
-    }
 
     val items = listOf(
         Triple(NavTab.HOME, Icons.Rounded.Home, strings.navHome),
@@ -126,11 +100,11 @@ fun TiendaNavigationRail(
         Triple(NavTab.SETTINGS, Icons.Rounded.Settings, strings.navSettings)
     )
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxHeight()
             .width(railWidth)
-            .then(bgModifier)
+            .background(if (c.isDark) Color.Transparent else c.glassRail)
             .onFocusChanged {
                 val focused = it.hasFocus
                 if (focused != isRailFocused) {
@@ -149,113 +123,103 @@ fun TiendaNavigationRail(
                     false
                 }
             }
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 16.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    top = 14.dp,
-                    bottom = 14.dp,
-                    start = 6.dp,
-                    end = if (floatingOverlay && isRailFocused) 18.dp else 6.dp
-                ),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
         ) {
-            Row(
+            Image(
+                painter = painterResource(id = R.drawable.ic_launcher_fg),
+                contentDescription = "TiendaTV",
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_fg),
-                    contentDescription = "TiendaTV",
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
+                    .size(36.dp)
+                    .clip(CircleShape)
+            )
+            if (isRailFocused) {
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = c.textPrimary)) { append("Tienda") }
+                        withStyle(SpanStyle(color = c.accent)) { append("TV") }
+                    },
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
-                if (isRailFocused) {
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = Color.White)) { append("Tienda") }
-                            withStyle(SpanStyle(color = c.accent)) { append("TV") }
-                        },
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Clip,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            items.forEach { (tab, icon, label) ->
-                val selected = tab == selectedTab
-                val shape = RoundedCornerShape(10.dp)
-                val pillBg by animateColorAsState(
-                    targetValue = if (selected) c.accentSoft else Color.Transparent,
-                    animationSpec = tween(120),
-                    label = "railItemBg"
-                )
-                val tint by animateColorAsState(
-                    targetValue = if (selected) c.accent else if (floatingOverlay) Color(0xCCFFFFFF) else c.textSecondary,
-                    animationSpec = tween(120),
-                    label = "railItemTint"
-                )
-                val itemMod = if (selected && railFocusRequester != null) {
-                    Modifier.focusRequester(railFocusRequester)
-                } else {
-                    Modifier
-                }
-
-                Row(
-                    modifier = itemMod
-                        .fillMaxWidth()
-                        .tvFocusable(
-                            shape = shape,
-                            focusScale = 1.02f,
-                            onClick = { onSelectTab(tab) }
-                        )
-                        .clip(shape)
-                        .background(pillBg)
-                        .padding(vertical = 9.dp, horizontal = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        tint = tint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    if (isRailFocused) {
-                        Text(
-                            text = label,
-                            color = tint,
-                            fontSize = 12.5.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(start = 9.dp)
-                        )
-                    }
-                }
             }
         }
 
-        if (!floatingOverlay) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(1.dp)
-                    .background(c.glassBorder)
+        Spacer(modifier = Modifier.height(6.dp))
+
+        items.forEach { (tab, icon, label) ->
+            val selected = tab == selectedTab
+            val shape = RoundedCornerShape(12.dp)
+            val pillBg by animateColorAsState(
+                targetValue = when {
+                    selected -> c.accentSoft
+                    c.isDark -> Color(0x9E10131C)
+                    else -> c.glassSurface
+                },
+                animationSpec = tween(130),
+                label = "railItemBg"
             )
+            val pillBorder by animateColorAsState(
+                targetValue = if (selected) c.accent.copy(alpha = 0.55f) else Color(0x24FFFFFF),
+                animationSpec = tween(130),
+                label = "railItemBorder"
+            )
+            val tint by animateColorAsState(
+                targetValue = if (selected) c.accent else Color(0xE6FFFFFF),
+                animationSpec = tween(130),
+                label = "railItemTint"
+            )
+            val itemMod = if (selected && railFocusRequester != null) {
+                Modifier.focusRequester(railFocusRequester)
+            } else {
+                Modifier
+            }
+
+            Row(
+                modifier = itemMod
+                    .fillMaxWidth()
+                    .tvFocusable(
+                        shape = shape,
+                        focusScale = 1.03f,
+                        onClick = { onSelectTab(tab) }
+                    )
+                    .clip(shape)
+                    .background(pillBg)
+                    .border(1.dp, if (c.isDark) pillBorder else c.glassBorder, shape)
+                    .padding(vertical = 10.dp, horizontal = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = if (c.isDark) tint else if (selected) c.accent else c.textSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+                if (isRailFocused) {
+                    Text(
+                        text = label,
+                        color = if (c.isDark) tint else if (selected) c.accent else c.textPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 10.dp)
+                    )
+                }
+            }
         }
     }
 }

@@ -117,7 +117,50 @@ fun CatalogGridScreen(
         NumberFormat.getIntegerInstance(Locale.getDefault()).format(totalCount)
     }
 
-    Row(modifier = Modifier.fillMaxSize()) {
+    val ambientArtUrl = heroItem?.backdropUrl?.ifBlank { heroItem.logoUrl }.orEmpty()
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Soft full-screen ambient backdrop behind Categories & Grid so floating frosted pills show glass depth
+        if (c.isDark && ambientArtUrl.isNotBlank()) {
+            Crossfade(
+                targetState = ambientArtUrl,
+                animationSpec = tween(650),
+                label = "catalogFullAmbient",
+                modifier = Modifier.fillMaxSize()
+            ) { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            0.0f to Color(0xE8000000),
+                            0.42f to Color(0xCC000000),
+                            0.78f to Color(0x73000000),
+                            1.0f to Color(0x4D000000)
+                        )
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color(0x33000000),
+                            0.38f to Color(0x99000000),
+                            0.70f to Color(0xF0000000),
+                            1.0f to Color(0xFF000000)
+                        )
+                    )
+            )
+        }
+
+        Row(modifier = Modifier.fillMaxSize()) {
         if (useCategorySidebar) {
             CategorySidebar(
                 categories = categories,
@@ -152,10 +195,10 @@ fun CatalogGridScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(234.dp)
-                        .background(if (c.isDark) Color(0xFF000000) else c.canvasTop)
+                        .background(if (c.isDark) Color.Transparent else c.canvasTop)
                 ) {
                     val artworkUrl = heroItem?.backdropUrl?.ifBlank { heroItem.logoUrl }.orEmpty()
-                    if (artworkUrl.isNotBlank()) {
+                    if (!c.isDark && artworkUrl.isNotBlank()) {
                         Crossfade(
                             targetState = artworkUrl,
                             animationSpec = tween(650),
@@ -175,7 +218,7 @@ fun CatalogGridScreen(
                     }
 
                     // Smooth left-to-right and bottom obsidian fade over artwork
-                    val fadeBg = if (c.isDark) Color(0xFF000000) else c.canvasTop
+                    val fadeBg = if (c.isDark) Color.Transparent else c.canvasTop
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -445,5 +488,6 @@ fun CatalogGridScreen(
                 }
             }
         }
+    }
     }
 }
