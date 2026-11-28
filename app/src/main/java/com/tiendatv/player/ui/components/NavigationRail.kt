@@ -58,9 +58,9 @@ enum class NavTab {
 }
 
 /**
- * Clean, zero-overlap navigation rail:
- * Stays compact (60dp icons) while browsing content and expands side-by-side (184dp)
- * when focused—never overlapping titles or categories.
+ * Slim, quiet, zero-overlap navigation rail:
+ * Compact 52dp icon rail when browsing, gently expands to 136dp when focused
+ * to minimize horizontal shift and visual noise.
  */
 @Composable
 fun TiendaNavigationRail(
@@ -73,12 +73,12 @@ fun TiendaNavigationRail(
     var isRailFocused by remember { mutableStateOf(false) }
 
     val railWidth by animateDpAsState(
-        targetValue = if (isRailFocused) 184.dp else 60.dp,
-        animationSpec = tween(durationMillis = 130),
+        targetValue = if (isRailFocused) 136.dp else 52.dp,
+        animationSpec = tween(durationMillis = 110),
         label = "railWidth"
     )
 
-    val railSurface = if (c.isDark) Color(0xFF0B0D11) else c.glassRail
+    val railSurface = if (c.isDark) Color(0xFF000000) else c.glassRail
 
     val items = listOf(
         Triple(NavTab.HOME, Icons.Rounded.Home, strings.navHome),
@@ -101,21 +101,21 @@ fun TiendaNavigationRail(
                 .weight(1f)
                 .fillMaxHeight()
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 16.dp, horizontal = 8.dp),
+                .padding(vertical = 14.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 2.dp),
+                    .padding(horizontal = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Start
             ) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(11.dp))
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(9.dp))
                         .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
                     contentAlignment = Alignment.Center
                 ) {
@@ -123,7 +123,7 @@ fun TiendaNavigationRail(
                         imageVector = Icons.Rounded.LiveTv,
                         contentDescription = "TiendaTV",
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
                 if (isRailFocused) {
@@ -132,28 +132,28 @@ fun TiendaNavigationRail(
                             withStyle(SpanStyle(color = c.textPrimary)) { append("Tienda") }
                             withStyle(SpanStyle(color = c.accent)) { append("TV") }
                         },
-                        fontSize = 17.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold,
                         maxLines = 1,
                         overflow = TextOverflow.Clip,
-                        modifier = Modifier.padding(start = 10.dp)
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             items.forEach { (tab, icon, label) ->
                 val selected = tab == selectedTab
-                val shape = RoundedCornerShape(12.dp)
+                val shape = RoundedCornerShape(10.dp)
                 val pillBg by animateColorAsState(
                     targetValue = if (selected) c.accentSoft else Color.Transparent,
-                    animationSpec = tween(140),
+                    animationSpec = tween(120),
                     label = "railItemBg"
                 )
                 val tint by animateColorAsState(
                     targetValue = if (selected) c.accent else c.textSecondary,
-                    animationSpec = tween(140),
+                    animationSpec = tween(120),
                     label = "railItemTint"
                 )
 
@@ -167,7 +167,7 @@ fun TiendaNavigationRail(
                         )
                         .clip(shape)
                         .background(pillBg)
-                        .padding(vertical = 10.dp, horizontal = 9.dp),
+                        .padding(vertical = 9.dp, horizontal = 9.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start
                 ) {
@@ -175,17 +175,17 @@ fun TiendaNavigationRail(
                         imageVector = icon,
                         contentDescription = label,
                         tint = tint,
-                        modifier = Modifier.size(21.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     if (isRailFocused) {
                         Text(
                             text = label,
                             color = tint,
-                            fontSize = 14.sp,
+                            fontSize = 12.5.sp,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(start = 12.dp)
+                            modifier = Modifier.padding(start = 9.dp)
                         )
                     }
                 }

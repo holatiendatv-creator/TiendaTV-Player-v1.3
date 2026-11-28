@@ -116,7 +116,13 @@ fun GlassPillButton(
 
     Row(
         modifier = modifier
-            .tvFocusable(shape = shape, onClick = onClick)
+            .tvFocusable(
+                shape = shape,
+                focusScale = if (primary) 1.05f else 1.03f,
+                focusBorderWidth = if (primary) 2.5.dp else 2.dp,
+                focusBorderColor = if (primary) Color.White else null,
+                onClick = onClick
+            )
             .clip(shape)
             .then(bgModifier)
             .border(

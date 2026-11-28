@@ -62,6 +62,7 @@ import com.tiendatv.player.ui.components.PosterMediaCard
 import com.tiendatv.player.ui.components.tvFocusable
 import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
+import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -91,8 +92,15 @@ fun CatalogGridScreen(
 ) {
     val c = LocalTiendaColors.current
     val useCategorySidebar = LocalConfiguration.current.screenWidthDp >= 640
-    var focusedItem by remember(selectedCategoryId) { mutableStateOf<MediaItemEntity?>(null) }
-    val heroItem = focusedItem ?: items.firstOrNull()
+    var pendingFocusedItem by remember(selectedCategoryId) { mutableStateOf<MediaItemEntity?>(null) }
+    var settledFocusedItem by remember(selectedCategoryId) { mutableStateOf<MediaItemEntity?>(null) }
+    LaunchedEffect(pendingFocusedItem) {
+        if (pendingFocusedItem != null) {
+            delay(220L)
+            settledFocusedItem = pendingFocusedItem
+        }
+    }
+    val heroItem = settledFocusedItem ?: items.firstOrNull()
 
     val selectedCatName = remember(categories, selectedCategoryId, strings) {
         if (selectedCategoryId.isBlank()) {
@@ -140,13 +148,13 @@ fun CatalogGridScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(216.dp)
-                        .background(if (c.isDark) Color(0xFF0B0D11) else c.canvasTop)
+                        .background(if (c.isDark) Color(0xFF000000) else c.canvasTop)
                 ) {
                     val artworkUrl = heroItem?.backdropUrl?.ifBlank { heroItem.logoUrl }.orEmpty()
                     if (artworkUrl.isNotBlank()) {
                         Crossfade(
                             targetState = artworkUrl,
-                            animationSpec = tween(350),
+                            animationSpec = tween(650),
                             label = "catalogHeroArt",
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
@@ -163,7 +171,7 @@ fun CatalogGridScreen(
                     }
 
                     // Smooth left-to-right and bottom obsidian fade over artwork
-                    val fadeBg = if (c.isDark) Color(0xFF0B0D11) else c.canvasTop
+                    val fadeBg = if (c.isDark) Color(0xFF000000) else c.canvasTop
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -276,7 +284,7 @@ fun CatalogGridScreen(
                             modifier = Modifier
                                 .width(200.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0x990B0D11))
+                                .background(Color(0xB3000000))
                                 .border(1.dp, c.glassBorder, RoundedCornerShape(12.dp))
                                 .padding(horizontal = 10.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -334,7 +342,7 @@ fun CatalogGridScreen(
                                     onClick = onCycleSort
                                 )
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0x990B0D11))
+                                .background(Color(0xB3000000))
                                 .border(1.dp, c.glassBorder, RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
@@ -402,7 +410,7 @@ fun CatalogGridScreen(
                         item = media,
                         isFavorite = favoriteUids.contains(media.uid),
                         cardWidth = 136.dp,
-                        onFocused = { focusedItem = media },
+                        onFocused = { pendingFocusedItem = media },
                         onClick = { onOpenItem(media) },
                         onToggleFavorite = { onToggleFavorite(media) }
                     )

@@ -7,14 +7,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.BringIntoViewSpec
-import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,19 +32,24 @@ import androidx.compose.ui.unit.dp
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 
 /**
- * Calm, zen TV D-pad + touch interaction modifier with gentle spring scale and glowing focus ring.
+ * Calm, zen TV D-pad + touch interaction modifier with gentle spring scale,
+ * glowing focus ring, and optional Long-Press OK / Firestick Menu support.
  */
+@OptIn(ExperimentalFoundationApi::class)
 fun Modifier.tvFocusable(
     shape: Shape = RoundedCornerShape(16.dp),
     focusScale: Float = 1.03f,
     focusBorderWidth: Dp = 2.dp,
     focusBorderColor: Color? = null,
     onFocused: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ): Modifier = composed {
     val palette = LocalTiendaColors.current
     val targetRingColor = focusBorderColor ?: palette.focusRing
     var isFocused by remember { mutableStateOf(false) }
+    var okDownTimeMs by remember { mutableLongStateOf(0L) }
+    var longPressHandled by remember { mutableStateOf(false) }
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused) focusScale else 1f,
@@ -81,52 +84,62 @@ fun Modifier.tvFocusable(
             if (nowFocused && !isFocused) {
                 onFocused?.invoke()
             }
+            if (!nowFocused) {
+                okDownTimeMs = 0L
+                longPressHandled = false
+            }
             isFocused = nowFocused
         }
         .onKeyEvent { event ->
-            if (event.type == KeyEventType.KeyUp &&
-                (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter)
-            ) {
-                onClick()
-                true
+            val isSelectKey = event.key == Key.DirectionCenter ||
+                event.key == Key.Enter ||
+                event.key == Key.NumPadEnter
+
+            if (onLongClick != null && event.type == KeyEventType.KeyUp && event.key == Key.Menu) {
+                onLongClick()
+                return@onKeyEvent true
+            }
+
+            if (isSelectKey) {
+                when (event.type) {
+                    KeyEventType.KeyDown -> {
+                        if (okDownTimeMs == 0L) {
+                            okDownTimeMs = System.currentTimeMillis()
+                            longPressHandled = false
+                        } else if (onLongClick != null && !longPressHandled &&
+                            System.currentTimeMillis() - okDownTimeMs >= 520L
+                        ) {
+                            longPressHandled = true
+                            onLongClick()
+                        }
+                        true
+                    }
+                    KeyEventType.KeyUp -> {
+                        val wasLong = longPressHandled
+                        okDownTimeMs = 0L
+                        longPressHandled = false
+                        if (!wasLong) {
+                            onClick()
+                        }
+                        true
+                    }
+                    else -> false
+                }
             } else {
                 false
             }
         }
         .focusable()
-        .clickable(onClick = onClick)
+        .combinedClickable(
+            onClick = onClick,
+            onLongClick = onLongClick
+        )
 }
 
 /**
- * Provides calm, native-feeling pivot scrolling across Lazy lists and grids.
+ * Uses Compose's native default BringIntoView scrolling (eliminates bounce/jump on tall cards).
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProvideSmoothTvScrolling(content: @Composable () -> Unit) {
-    val pivotSpec = remember {
-        object : BringIntoViewSpec {
-            override val scrollAnimationSpec = spring<Float>(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMedium
-            )
-
-            override fun calculateScrollDistance(
-                offset: Float,
-                size: Float,
-                containerSize: Float
-            ): Float {
-                val leadingEdge = offset
-                val trailingEdge = offset + size
-                val safeMargin = (containerSize * 0.22f).coerceAtMost(140f)
-                return when {
-                    leadingEdge < safeMargin -> leadingEdge - safeMargin
-                    trailingEdge > containerSize - safeMargin -> trailingEdge - (containerSize - safeMargin)
-                    else -> 0f
-                }
-            }
-        }
-    }
-    CompositionLocalProvider(LocalBringIntoViewSpec provides pivotSpec) {
-        content()
-    }
+    content()
 }

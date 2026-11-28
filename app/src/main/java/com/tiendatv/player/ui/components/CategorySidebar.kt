@@ -46,12 +46,12 @@ fun CategorySidebar(
 ) {
     val c = LocalTiendaColors.current
     val listState = rememberLazyListState()
-    val sidebarBg = if (c.isDark) Color(0xFF0E1117) else c.glassRail
+    val sidebarBg = if (c.isDark) Color(0xFF050507) else c.glassRail
 
     Row(
         modifier = modifier
             .fillMaxHeight()
-            .width(206.dp)
+            .width(180.dp)
             .background(sidebarBg)
     ) {
         Column(

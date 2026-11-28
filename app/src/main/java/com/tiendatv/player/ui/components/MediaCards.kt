@@ -1,6 +1,7 @@
 package com.tiendatv.player.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,18 +17,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -37,10 +44,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.tiendatv.player.data.local.MediaItemEntity
 import com.tiendatv.player.data.local.WatchHistoryEntity
 import com.tiendatv.player.ui.theme.LocalTiendaColors
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 /**
@@ -74,7 +83,7 @@ fun PosterMediaCard(
                     onClick = onClick
                 )
                 .clip(posterShape)
-                .background(if (c.isDark) Color(0xFF161A22) else Color(0xFFDCE3EE))
+                .background(if (c.isDark) Color(0xFF0D0E12) else Color(0xFFDCE3EE))
         ) {
             if (item.logoUrl.isNotBlank()) {
                 AsyncImage(
@@ -177,7 +186,7 @@ fun LandscapeHighlightCard(
                 onClick = onClick
             )
             .clip(shape)
-            .background(if (c.isDark) Color(0xFF161A22) else Color(0xFFCBD5E1))
+            .background(if (c.isDark) Color(0xFF0D0E12) else Color(0xFFCBD5E1))
     ) {
         val img = item.backdropUrl.ifBlank { item.logoUrl }
         if (img.isNotBlank()) {
@@ -212,7 +221,8 @@ fun LandscapeHighlightCard(
 }
 
 /**
- * Continue Watching / Recently Watched card with a D-pad-reachable "Quitar / Remove" pill directly below.
+ * Clean, zen Continue Watching / Recently Watched card.
+ * Hold OK (long-press) or press Menu on the Firestick remote to discreetly remove the item.
  */
 @Composable
 fun ContinueWatchingCard(
@@ -225,122 +235,145 @@ fun ContinueWatchingCard(
 ) {
     val c = LocalTiendaColors.current
     val shape = RoundedCornerShape(16.dp)
+    var showRemoveMenu by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier.width(224.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+    Box(
+        modifier = modifier
+            .width(224.dp)
+            .height(124.dp)
+            .tvFocusable(
+                shape = shape,
+                focusScale = 1.03f,
+                onFocused = onFocused,
+                onLongClick = if (onRemove != null) {
+                    { showRemoveMenu = true }
+                } else null,
+                onClick = onClick
+            )
+            .clip(shape)
+            .background(if (c.isDark) Color(0xFF0D0E12) else Color(0xFFCBD5E1))
     ) {
+        if (entry.posterUrl.isNotBlank()) {
+            AsyncImage(
+                model = entry.posterUrl,
+                contentDescription = entry.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(124.dp)
-                .tvFocusable(
-                    shape = shape,
-                    focusScale = 1.03f,
-                    onFocused = onFocused,
-                    onClick = onClick
-                )
-                .clip(shape)
-                .background(if (c.isDark) Color(0xFF161A22) else Color(0xFFCBD5E1))
-        ) {
-            if (entry.posterUrl.isNotBlank()) {
-                AsyncImage(
-                    model = entry.posterUrl,
-                    contentDescription = entry.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color(0x22000000), Color(0xDD0B0D11))
-                        )
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0x22000000), Color(0xDD0B0D11))
                     )
+                )
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(9.dp)
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(c.accent),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.PlayArrow,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(17.dp)
             )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(9.dp)
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(c.accent),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(17.dp)
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(10.dp)
+        ) {
+            Text(
+                text = entry.title,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (entry.subtitle.isNotBlank()) {
+                Text(
+                    text = entry.subtitle,
+                    color = Color(0xCCFFFFFF),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+            if (entry.progressFraction > 0f) {
+                Spacer(modifier = Modifier.height(5.dp))
+                LinearProgressIndicator(
+                    progress = { entry.progressFraction },
+                    color = c.accent,
+                    trackColor = Color(0x55FFFFFF),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.5.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                )
+            }
+        }
+    }
 
+    if (showRemoveMenu && onRemove != null) {
+        val removeFocus = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            delay(50L)
+            try {
+                removeFocus.requestFocus()
+            } catch (_: Exception) {
+            }
+        }
+        Dialog(onDismissRequest = { showRemoveMenu = false }) {
             Column(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(10.dp)
+                    .width(340.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xF5050507))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
                     text = entry.title,
                     color = Color.White,
-                    fontSize = 13.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (entry.subtitle.isNotBlank()) {
-                    Text(
-                        text = entry.subtitle,
-                        color = Color(0xCCFFFFFF),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (entry.progressFraction > 0f) {
-                    Spacer(modifier = Modifier.height(5.dp))
-                    LinearProgressIndicator(
-                        progress = { entry.progressFraction },
-                        color = c.accent,
-                        trackColor = Color(0x55FFFFFF),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    GlassPillButton(
+                        text = removeLabel,
+                        icon = Icons.Rounded.Delete,
+                        primary = true,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.5.dp)
-                            .clip(RoundedCornerShape(2.dp))
+                            .weight(1f)
+                            .focusRequester(removeFocus),
+                        onClick = {
+                            showRemoveMenu = false
+                            onRemove()
+                        }
+                    )
+                    GlassPillButton(
+                        text = "Cancelar",
+                        darkGlass = true,
+                        onClick = { showRemoveMenu = false }
                     )
                 }
-            }
-        }
-
-        if (onRemove != null) {
-            Row(
-                modifier = Modifier
-                    .tvFocusable(
-                        shape = RoundedCornerShape(10.dp),
-                        focusScale = 1.03f,
-                        onClick = onRemove
-                    )
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0x33FFFFFF))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = removeLabel,
-                    tint = Color(0xDDFFFFFF),
-                    modifier = Modifier.size(13.dp)
-                )
-                Text(
-                    text = removeLabel,
-                    color = Color(0xDDFFFFFF),
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Medium
-                )
             }
         }
     }

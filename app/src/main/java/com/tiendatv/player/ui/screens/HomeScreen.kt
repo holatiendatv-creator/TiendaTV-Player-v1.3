@@ -1,6 +1,12 @@
 package com.tiendatv.player.ui.screens
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,6 +64,17 @@ import com.tiendatv.player.ui.i18n.AppStrings
 import com.tiendatv.player.ui.theme.LocalTiendaColors
 import kotlinx.coroutines.delay
 import java.util.Locale
+
+private data class HomeHeroDisplay(
+    val uid: String,
+    val title: String,
+    val subtitle: String,
+    val year: String,
+    val rating: Double,
+    val backdropUrl: String,
+    val mediaItem: MediaItemEntity? = null,
+    val historyEntry: WatchHistoryEntity? = null
+)
 
 @Composable
 fun HomeScreen(
@@ -95,28 +113,59 @@ fun HomeScreen(
     }
 
     var showcaseIndex by remember(showcaseItems) { mutableIntStateOf(0) }
-    var focusedBackdropUrl by remember { mutableStateOf<String?>(null) }
+    var pendingFocusHero by remember { mutableStateOf<HomeHeroDisplay?>(null) }
+    var settledFocusHero by remember { mutableStateOf<HomeHeroDisplay?>(null) }
 
-    LaunchedEffect(showcaseItems, focusedBackdropUrl) {
-        if (showcaseItems.size > 1 && focusedBackdropUrl == null) {
+    // 280ms settle debounce: keeps backdrop calm while gliding quickly across cards
+    LaunchedEffect(pendingFocusHero) {
+        if (pendingFocusHero != null) {
+            delay(280L)
+            settledFocusHero = pendingFocusHero
+        }
+    }
+
+    // Gentle auto-rotation only when user hasn't focused a specific card yet
+    LaunchedEffect(showcaseItems, settledFocusHero) {
+        if (showcaseItems.size > 1 && settledFocusHero == null) {
             while (true) {
-                delay(8_500L)
+                delay(9_000L)
                 showcaseIndex = (showcaseIndex + 1) % showcaseItems.size
             }
         }
     }
 
-    val currentShowcase = showcaseItems.getOrNull(showcaseIndex) ?: heroItem
-    val activeBackdropUrl = focusedBackdropUrl
-        ?: currentShowcase?.backdropUrl?.ifBlank { currentShowcase.logoUrl }
-        ?: ""
+    val defaultShowcase = showcaseItems.getOrNull(showcaseIndex) ?: heroItem
+    val activeHero = settledFocusHero ?: defaultShowcase?.let {
+        HomeHeroDisplay(
+            uid = it.uid,
+            title = it.name,
+            subtitle = it.plot,
+            year = it.year,
+            rating = it.rating,
+            backdropUrl = it.backdropUrl.ifBlank { it.logoUrl },
+            mediaItem = it
+        )
+    }
+
+    // Subtle Apple TV-style ambient breathing drift on the full-bleed backdrop
+    val driftTransition = rememberInfiniteTransition(label = "heroDrift")
+    val ambientScale by driftTransition.animateFloat(
+        initialValue = 1.00f,
+        targetValue = 1.045f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 16_000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ambientBackdropScale"
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Fullscreen cinematic backdrop that crossfades smoothly with focus or rotation
-        if (activeBackdropUrl.isNotBlank()) {
+        // Silky 900ms crossfading full-bleed backdrop
+        val backdropUrl = activeHero?.backdropUrl.orEmpty()
+        if (backdropUrl.isNotBlank()) {
             Crossfade(
-                targetState = activeBackdropUrl,
-                animationSpec = tween(durationMillis = 700),
+                targetState = backdropUrl,
+                animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
                 label = "homeZenBackdrop",
                 modifier = Modifier.fillMaxSize()
             ) { url ->
@@ -124,22 +173,26 @@ fun HomeScreen(
                     model = url,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = ambientScale
+                            scaleY = ambientScale
+                        }
                 )
             }
         }
 
-        // Deep obsidian cinema vignette for calm, high-contrast legibility
+        // Feather-soft cinema vignette blending seamlessly into pure #000000 pitch black
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xE80B0D11),
-                            Color(0x990B0D11),
-                            Color(0x380B0D11)
-                        )
+                        0.0f to Color(0xF2000000),
+                        0.38f to Color(0xB3000000),
+                        0.68f to Color(0x40000000),
+                        1.0f to Color(0x18000000)
                     )
                 )
         )
@@ -148,12 +201,10 @@ fun HomeScreen(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x280B0D11),
-                            Color(0x400B0D11),
-                            Color(0xEB0B0D11),
-                            Color(0xFF0B0D11)
-                        )
+                        0.0f to Color(0x33000000),
+                        0.36f to Color(0x1A000000),
+                        0.68f to Color(0xE6000000),
+                        1.0f to Color(0xFF000000)
                     )
                 )
         )
@@ -163,7 +214,7 @@ fun HomeScreen(
             contentPadding = PaddingValues(start = 28.dp, end = 28.dp, top = 28.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(26.dp)
         ) {
-            // 1. Open, Cinematic Zen Hero Section
+            // 1. Synced, Calm Cinematic Hero Section
             item(key = "hero_section") {
                 Column(
                     modifier = Modifier
@@ -171,58 +222,81 @@ fun HomeScreen(
                         .padding(top = 24.dp, bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (currentShowcase != null) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (currentShowcase.year.isNotBlank()) {
-                                Text(
-                                    text = currentShowcase.year,
-                                    color = Color(0xCCFFFFFF),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            if (currentShowcase.rating > 0.0) {
+                    if (activeHero != null) {
+                        Crossfade(
+                            targetState = activeHero,
+                            animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+                            label = "heroMetaFade"
+                        ) { hero ->
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0x660B0D11))
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Star,
-                                        contentDescription = null,
-                                        tint = Color(0xFFF5B041),
-                                        modifier = Modifier.size(13.dp)
-                                    )
+                                    if (hero.year.isNotBlank()) {
+                                        Text(
+                                            text = hero.year,
+                                            color = Color(0xCCFFFFFF),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                    if (hero.rating > 0.0) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(c.accent)
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Star,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                text = String.format(Locale.US, "%.1f", hero.rating),
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = hero.title,
+                                    color = Color.White,
+                                    fontSize = 34.sp,
+                                    lineHeight = 38.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth(0.66f)
+                                )
+
+                                if (hero.subtitle.isNotBlank()) {
                                     Text(
-                                        text = String.format(Locale.US, "%.1f", currentShowcase.rating),
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
+                                        text = hero.subtitle,
+                                        color = Color(0xCCFFFFFF),
+                                        fontSize = 13.5.sp,
+                                        lineHeight = 19.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.fillMaxWidth(0.58f)
                                     )
                                 }
                             }
                         }
 
-                        Text(
-                            text = currentShowcase.name,
-                            color = Color.White,
-                            fontSize = 34.sp,
-                            lineHeight = 38.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.fillMaxWidth(0.68f)
-                        )
-
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        val isFav = favoriteUids.contains(currentShowcase.uid)
+                        val mediaRef = activeHero.mediaItem
+                        val histRef = activeHero.historyEntry
+                        val isFav = mediaRef != null && favoriteUids.contains(mediaRef.uid)
+
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -231,7 +305,12 @@ fun HomeScreen(
                                 text = strings.playNow,
                                 icon = Icons.Rounded.PlayArrow,
                                 primary = true,
-                                onClick = { onOpenMedia(currentShowcase) }
+                                onClick = {
+                                    when {
+                                        mediaRef != null -> onOpenMedia(mediaRef)
+                                        histRef != null -> onResumeHistory(histRef)
+                                    }
+                                }
                             )
                             if (lastLiveEntry != null) {
                                 GlassPillButton(
@@ -241,12 +320,14 @@ fun HomeScreen(
                                     onClick = { onResumeHistory(lastLiveEntry) }
                                 )
                             }
-                            GlassPillButton(
-                                text = if (isFav) strings.favorited else strings.favorite,
-                                icon = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                darkGlass = true,
-                                onClick = { onToggleFavorite(currentShowcase) }
-                            )
+                            if (mediaRef != null) {
+                                GlassPillButton(
+                                    text = if (isFav) strings.favorited else strings.favorite,
+                                    icon = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                    darkGlass = true,
+                                    onClick = { onToggleFavorite(mediaRef) }
+                                )
+                            }
                         }
                     } else {
                         Text(
@@ -265,7 +346,7 @@ fun HomeScreen(
                 }
             }
 
-            // 2. Continue Watching (with individual Remove button)
+            // 2. Continue Watching (Long-Press OK / Menu to remove discreetly)
             if (continueWatching.isNotEmpty()) {
                 item(key = "continue_watching_row") {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -275,9 +356,15 @@ fun HomeScreen(
                                 ContinueWatchingCard(
                                     entry = entry,
                                     onFocused = {
-                                        if (entry.posterUrl.isNotBlank()) {
-                                            focusedBackdropUrl = entry.posterUrl
-                                        }
+                                        pendingFocusHero = HomeHeroDisplay(
+                                            uid = entry.uid,
+                                            title = entry.title,
+                                            subtitle = entry.subtitle,
+                                            year = "",
+                                            rating = 0.0,
+                                            backdropUrl = entry.posterUrl,
+                                            historyEntry = entry
+                                        )
                                     },
                                     onClick = { onResumeHistory(entry) },
                                     onRemove = { onRemoveHistory(entry.uid) },
@@ -289,7 +376,7 @@ fun HomeScreen(
                 }
             }
 
-            // 3. Recently Watched (with individual Remove button)
+            // 3. Recently Watched (Long-Press OK / Menu to remove discreetly)
             if (recentlyWatched.isNotEmpty()) {
                 item(key = "recently_watched_row") {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -304,9 +391,15 @@ fun HomeScreen(
                                 ContinueWatchingCard(
                                     entry = entry,
                                     onFocused = {
-                                        if (entry.posterUrl.isNotBlank()) {
-                                            focusedBackdropUrl = entry.posterUrl
-                                        }
+                                        pendingFocusHero = HomeHeroDisplay(
+                                            uid = entry.uid,
+                                            title = entry.title,
+                                            subtitle = entry.subtitle,
+                                            year = "",
+                                            rating = 0.0,
+                                            backdropUrl = entry.posterUrl,
+                                            historyEntry = entry
+                                        )
                                     },
                                     onClick = { onResumeHistory(entry) },
                                     onRemove = { onRemoveHistory(entry.uid) },
@@ -330,8 +423,15 @@ fun HomeScreen(
                                     isFavorite = true,
                                     cardWidth = 148.dp,
                                     onFocused = {
-                                        val bg = item.backdropUrl.ifBlank { item.logoUrl }
-                                        if (bg.isNotBlank()) focusedBackdropUrl = bg
+                                        pendingFocusHero = HomeHeroDisplay(
+                                            uid = item.uid,
+                                            title = item.name,
+                                            subtitle = item.plot,
+                                            year = item.year,
+                                            rating = item.rating,
+                                            backdropUrl = item.backdropUrl.ifBlank { item.logoUrl },
+                                            mediaItem = item
+                                        )
                                     },
                                     onClick = { onOpenMedia(item) },
                                     onToggleFavorite = { onToggleFavorite(item) }
@@ -358,8 +458,15 @@ fun HomeScreen(
                                     isFavorite = favoriteUids.contains(item.uid),
                                     cardWidth = 148.dp,
                                     onFocused = {
-                                        val bg = item.backdropUrl.ifBlank { item.logoUrl }
-                                        if (bg.isNotBlank()) focusedBackdropUrl = bg
+                                        pendingFocusHero = HomeHeroDisplay(
+                                            uid = item.uid,
+                                            title = item.name,
+                                            subtitle = item.plot,
+                                            year = item.year,
+                                            rating = item.rating,
+                                            backdropUrl = item.backdropUrl.ifBlank { item.logoUrl },
+                                            mediaItem = item
+                                        )
                                     },
                                     onClick = { onOpenMedia(item) },
                                     onToggleFavorite = { onToggleFavorite(item) }
@@ -386,8 +493,15 @@ fun HomeScreen(
                                     isFavorite = favoriteUids.contains(item.uid),
                                     cardWidth = 148.dp,
                                     onFocused = {
-                                        val bg = item.backdropUrl.ifBlank { item.logoUrl }
-                                        if (bg.isNotBlank()) focusedBackdropUrl = bg
+                                        pendingFocusHero = HomeHeroDisplay(
+                                            uid = item.uid,
+                                            title = item.name,
+                                            subtitle = item.plot,
+                                            year = item.year,
+                                            rating = item.rating,
+                                            backdropUrl = item.backdropUrl.ifBlank { item.logoUrl },
+                                            mediaItem = item
+                                        )
                                     },
                                     onClick = { onOpenMedia(item) },
                                     onToggleFavorite = { onToggleFavorite(item) }

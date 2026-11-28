@@ -1122,7 +1122,7 @@ private fun PlayerIconButton(
             .size(size)
             .tvFocusable(
                 shape = CircleShape,
-                focusBorderColor = Color(0xFFFF7A45),
+                focusBorderColor = if (emphasized) Color.White else Color(0xFFFF7A45),
                 onClick = onClick
             )
             .clip(CircleShape)
@@ -1250,7 +1250,7 @@ private fun TrackRowItem(
             .fillMaxWidth()
             .tvFocusable(
                 shape = RoundedCornerShape(12.dp),
-                focusBorderColor = Color(0xFFFF7A45),
+                focusBorderColor = if (selected) Color.White else Color(0xFFFF7A45),
                 onClick = onClick
             )
             .clip(RoundedCornerShape(12.dp))

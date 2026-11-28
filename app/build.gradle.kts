@@ -13,8 +13,8 @@ android {
         applicationId = "com.tiendatv.player"
         minSdk = 21
         targetSdk = 35
-        versionCode = 11
-        versionName = "2.0.0"
+        versionCode = 12
+        versionName = "2.1.0"
 
         // Pre-configured default Xtream Codes server URL (editable here or in AppConfig.kt)
         buildConfigField("String", "DEFAULT_XTREAM_SERVER", "\"http://tiendalatinatv.com\"")
@@ -34,6 +34,12 @@ android {
                 keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: ""
             }
         }
+        create("tiendatvStable") {
+            storeFile = file("tiendatv-signing.jks")
+            storePassword = "tiendatv2026"
+            keyAlias = "tiendatv"
+            keyPassword = "tiendatv2026"
+        }
     }
 
     buildTypes {
@@ -42,11 +48,10 @@ android {
             isShrinkResources = false
             val hasReleaseKey = !System.getenv("SIGNING_STORE_FILE").isNullOrBlank() &&
                 file(System.getenv("SIGNING_STORE_FILE")).exists()
-            signingConfig = if (hasReleaseKey) {
-                signingConfigs.getByName("release")
-            } else {
-                // Allows direct sideloading on Firestick / Android TV even before configuring a custom keystore
-                signingConfigs.getByName("debug")
+            signingConfig = when {
+                hasReleaseKey -> signingConfigs.getByName("release")
+                file("tiendatv-signing.jks").exists() -> signingConfigs.getByName("tiendatvStable")
+                else -> signingConfigs.getByName("debug")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
