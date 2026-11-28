@@ -123,8 +123,14 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                 )
             } else {
                 FrostedCanvasBackground(modifier = Modifier.safeDrawingPadding()) {
-                    val showLogin = state.activeProfile == null || state.showAddProfileModal
-                    if (showLogin) {
+                    val showLogin = !state.isInitializing && (state.activeProfile == null || state.showAddProfileModal)
+                    if (state.isInitializing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black)
+                        )
+                    } else if (showLogin) {
                         LoginScreen(
                             profiles = state.profiles,
                             isBusy = state.loginBusy,
@@ -149,16 +155,46 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                 progress = state.syncProgress.progressFraction,
                                 title = strings.syncingCatalog
                             )
+                        } else if (state.selectedTab == NavTab.HOME && state.activeSeries == null) {
+                            // True 100% edge-to-edge full-bleed Home with floating translucent rail (zero gap, zero push)
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                HomeScreen(
+                                    counts = state.counts,
+                                    heroItem = state.heroItem,
+                                    continueWatching = state.continueWatching,
+                                    recentlyWatched = state.recentlyWatched,
+                                    favorites = state.favoriteItems,
+                                    featuredMovies = state.featuredMovies,
+                                    featuredSeries = state.featuredSeries,
+                                    favoriteUids = state.favoriteUids,
+                                    strings = strings,
+                                    onNavigateTab = { viewModel.selectTab(it) },
+                                    onOpenMedia = { viewModel.openMedia(it) },
+                                    onResumeHistory = { viewModel.resumeHistory(it) },
+                                    onRemoveHistory = { viewModel.removeHistoryItem(it) },
+                                    onClearHistory = { viewModel.clearHistory() },
+                                    onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                    onReloadCatalog = { viewModel.syncActiveProfile() },
+                                    onExitApp = { activity?.finish() }
+                                )
+                                TiendaNavigationRail(
+                                    selectedTab = state.selectedTab,
+                                    strings = strings,
+                                    onSelectTab = { viewModel.selectTab(it) },
+                                    floatingOverlay = true,
+                                    modifier = Modifier.align(Alignment.CenterStart)
+                                )
+                            }
                         } else {
                             Row(
                                 modifier = Modifier.fillMaxSize(),
                                 horizontalArrangement = Arrangement.spacedBy(0.dp)
                             ) {
-                                // Unified zero-reflow overlay navigation rail across all tabs
                                 TiendaNavigationRail(
                                     selectedTab = state.selectedTab,
                                     strings = strings,
-                                    onSelectTab = { viewModel.selectTab(it) }
+                                    onSelectTab = { viewModel.selectTab(it) },
+                                    floatingOverlay = false
                                 )
 
                                 Box(

@@ -58,27 +58,52 @@ enum class NavTab {
 }
 
 /**
- * Slim, quiet, zero-overlap navigation rail:
- * Compact 52dp icon rail when browsing, gently expands to 136dp when focused
- * to minimize horizontal shift and visual noise.
+ * Navigation rail supporting two modes:
+ * - floatingOverlay = true (Home): floats seamlessly over the 100% edge-to-edge full-bleed backdrop
+ *   with a soft dark fade and zero screen push/shift or vertical gap.
+ * - floatingOverlay = false (Catalog tabs): sits cleanly side-by-side with Categories so nothing overlaps.
  */
 @Composable
 fun TiendaNavigationRail(
     selectedTab: NavTab,
     strings: AppStrings,
     onSelectTab: (NavTab) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    floatingOverlay: Boolean = false
 ) {
     val c = LocalTiendaColors.current
     var isRailFocused by remember { mutableStateOf(false) }
 
     val railWidth by animateDpAsState(
-        targetValue = if (isRailFocused) 136.dp else 52.dp,
-        animationSpec = tween(durationMillis = 110),
+        targetValue = if (isRailFocused) {
+            if (floatingOverlay) 168.dp else 136.dp
+        } else {
+            52.dp
+        },
+        animationSpec = tween(durationMillis = 140),
         label = "railWidth"
     )
 
-    val railSurface = if (c.isDark) Color(0xFF000000) else c.glassRail
+    val bgModifier = if (floatingOverlay) {
+        if (isRailFocused) {
+            Modifier.background(
+                Brush.horizontalGradient(
+                    0.0f to Color(0xF5000000),
+                    0.78f to Color(0xE0000000),
+                    1.0f to Color(0x00000000)
+                )
+            )
+        } else {
+            Modifier.background(
+                Brush.horizontalGradient(
+                    0.0f to Color(0xCC000000),
+                    1.0f to Color(0x00000000)
+                )
+            )
+        }
+    } else {
+        Modifier.background(if (c.isDark) Color(0xFF000000) else c.glassRail)
+    }
 
     val items = listOf(
         Triple(NavTab.HOME, Icons.Rounded.Home, strings.navHome),
@@ -93,7 +118,7 @@ fun TiendaNavigationRail(
         modifier = modifier
             .fillMaxHeight()
             .width(railWidth)
-            .background(railSurface)
+            .then(bgModifier)
             .onFocusChanged { isRailFocused = it.hasFocus }
     ) {
         Column(
@@ -101,7 +126,12 @@ fun TiendaNavigationRail(
                 .weight(1f)
                 .fillMaxHeight()
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 14.dp, horizontal = 6.dp),
+                .padding(
+                    top = 14.dp,
+                    bottom = 14.dp,
+                    start = 6.dp,
+                    end = if (floatingOverlay && isRailFocused) 18.dp else 6.dp
+                ),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
@@ -129,7 +159,7 @@ fun TiendaNavigationRail(
                 if (isRailFocused) {
                     Text(
                         text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = c.textPrimary)) { append("Tienda") }
+                            withStyle(SpanStyle(color = Color.White)) { append("Tienda") }
                             withStyle(SpanStyle(color = c.accent)) { append("TV") }
                         },
                         fontSize = 14.sp,
@@ -152,7 +182,7 @@ fun TiendaNavigationRail(
                     label = "railItemBg"
                 )
                 val tint by animateColorAsState(
-                    targetValue = if (selected) c.accent else c.textSecondary,
+                    targetValue = if (selected) c.accent else if (floatingOverlay) Color(0xCCFFFFFF) else c.textSecondary,
                     animationSpec = tween(120),
                     label = "railItemTint"
                 )
@@ -192,11 +222,13 @@ fun TiendaNavigationRail(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(1.dp)
-                .background(c.glassBorder)
-        )
+        if (!floatingOverlay) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(1.dp)
+                    .background(c.glassBorder)
+            )
+        }
     }
 }

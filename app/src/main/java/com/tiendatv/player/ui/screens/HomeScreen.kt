@@ -212,7 +212,7 @@ fun HomeScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 28.dp, end = 28.dp, top = 28.dp, bottom = 36.dp),
+            contentPadding = PaddingValues(start = 78.dp, end = 28.dp, top = 28.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(26.dp)
         ) {
             // 1. Synced, Calm Cinematic Hero Section

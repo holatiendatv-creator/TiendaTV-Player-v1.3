@@ -45,6 +45,7 @@ data class CatalogSliceState(
 data class MainUiState(
     val settings: UserSettings = UserSettings(),
     val profiles: List<ProfileEntity> = emptyList(),
+    val isInitializing: Boolean = true,
     val activeProfile: ProfileEntity? = null,
     val selectedTab: NavTab = NavTab.HOME,
     val showAddProfileModal: Boolean = false,
@@ -123,7 +124,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             repo.observeActiveProfile().collectLatest { profile ->
-                _state.update { it.copy(activeProfile = profile) }
+                _state.update { it.copy(isInitializing = false, activeProfile = profile) }
                 profileObserversJob?.cancel()
                 if (profile != null) {
                     attachProfileObservers(profile)
