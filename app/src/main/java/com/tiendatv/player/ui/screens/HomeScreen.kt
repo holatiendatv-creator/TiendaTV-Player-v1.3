@@ -2,6 +2,7 @@ package com.tiendatv.player.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -132,7 +133,7 @@ fun HomeScreen(
     LaunchedEffect(showcaseItems) {
         if (showcaseItems.size > 1) {
             while (true) {
-                delay(8_500L)
+                delay(10_000L)
                 posterVisible = false
                 descVisible = false
                 delay(180L)
@@ -141,13 +142,13 @@ fun HomeScreen(
                 transitionAnim.snapTo(0f)
                 transitionAnim.animateTo(
                     targetValue = 1f,
-                    animationSpec = tween(durationMillis = 720, easing = FastOutSlowInEasing)
+                    animationSpec = tween(durationMillis = 1150, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f))
                 )
                 // Beat 2: Mini poster appears first
-                delay(140L)
+                delay(200L)
                 posterVisible = true
                 // Beat 3: Title & description glides in right after
-                delay(240L)
+                delay(300L)
                 descVisible = true
             }
         }
@@ -390,7 +391,7 @@ fun HomeScreen(
                         Box(modifier = Modifier.weight(1f)) {
                             androidx.compose.animation.AnimatedVisibility(
                                 visible = descVisible,
-                                enter = fadeIn(tween(340)) + slideInVertically(tween(340)) { it / 4 },
+                                enter = fadeIn(tween(560, easing = FastOutSlowInEasing)) + slideInVertically(tween(560, easing = FastOutSlowInEasing)) { it / 5 },
                                 exit = fadeOut(tween(180))
                             ) {
                                 Column(
@@ -430,7 +431,7 @@ fun HomeScreen(
                         val posterUrl = currentItem.logoUrl.ifBlank { currentItem.backdropUrl }
                         AnimatedVisibility(
                             visible = posterVisible && posterUrl.isNotBlank(),
-                            enter = fadeIn(tween(320)) + slideInHorizontally(tween(320)) { it / 3 },
+                            enter = fadeIn(tween(520, easing = FastOutSlowInEasing)) + slideInHorizontally(tween(520, easing = FastOutSlowInEasing)) { it / 4 },
                             exit = fadeOut(tween(180))
                         ) {
                             Box(

@@ -19,6 +19,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -203,30 +206,47 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                 progress = state.syncProgress.progressFraction,
                                 title = strings.syncingCatalog
                             )
-                        } else if (state.selectedTab == NavTab.HOME && state.activeSeries == null) {
-                            // Pure full-bleed IBO-style Home with integrated fixed left vertical menu (zero trap, zero push)
-                            HomeScreen(
-                                counts = state.counts,
-                                heroItem = state.heroItem,
-                                continueWatching = state.continueWatching,
-                                recentlyWatched = state.recentlyWatched,
-                                favorites = state.favoriteItems,
-                                featuredMovies = state.featuredMovies,
-                                featuredSeries = state.featuredSeries,
-                                favoriteUids = state.favoriteUids,
-                                strings = strings,
-                                onNavigateTab = { viewModel.selectTab(it) },
-                                onOpenMedia = { viewModel.openMedia(it) },
-                                onResumeHistory = { viewModel.resumeHistory(it) },
-                                onRemoveHistory = { viewModel.removeHistoryItem(it) },
-                                onClearHistory = { viewModel.clearHistory() },
-                                onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                onReloadCatalog = { viewModel.syncActiveProfile() },
-                                onExitApp = { showExitDialog = true },
-                                primaryFocusRequester = homeFocusRequester
-                            )
                         } else {
-                            Row(
+                            val isHomeMode = state.selectedTab == NavTab.HOME && state.activeSeries == null
+                            AnimatedContent(
+                                targetState = isHomeMode,
+                                transitionSpec = {
+                                    if (!targetState) {
+                                        // Entering Live TV / Movies / Series from Home: silky fade + subtle depth zoom
+                                        (fadeIn(tween(340, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.985f, animationSpec = tween(340, easing = FastOutSlowInEasing))) togetherWith
+                                            fadeOut(tween(220))
+                                    } else {
+                                        // Returning to Home: calm dissolve
+                                        fadeIn(tween(320, easing = FastOutSlowInEasing)) togetherWith
+                                            (fadeOut(tween(220)) + scaleOut(targetScale = 0.985f, animationSpec = tween(220)))
+                                    }
+                                },
+                                label = "homeContentCinemaTransition"
+                            ) { showingHome ->
+                                if (showingHome) {
+                                    HomeScreen(
+                                        counts = state.counts,
+                                        heroItem = state.heroItem,
+                                        continueWatching = state.continueWatching,
+                                        recentlyWatched = state.recentlyWatched,
+                                        favorites = state.favoriteItems,
+                                        featuredMovies = state.featuredMovies,
+                                        featuredSeries = state.featuredSeries,
+                                        favoriteUids = state.favoriteUids,
+                                        strings = strings,
+                                        onNavigateTab = { viewModel.selectTab(it) },
+                                        onOpenMedia = { viewModel.openMedia(it) },
+                                        onResumeHistory = { viewModel.resumeHistory(it) },
+                                        onRemoveHistory = { viewModel.removeHistoryItem(it) },
+                                        onClearHistory = { viewModel.clearHistory() },
+                                        onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                        onReloadCatalog = { viewModel.syncActiveProfile() },
+                                        onExitApp = { showExitDialog = true },
+                                        primaryFocusRequester = homeFocusRequester
+                                    )
+                                } else {
+                                    Row(
                                 modifier = Modifier.fillMaxSize(),
                                 horizontalArrangement = Arrangement.spacedBy(0.dp)
                             ) {
@@ -387,8 +407,10 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                         }
                                     }
                                 }
+                                }
                             }
                         }
+                    }
                     }
 
                     if (showExitDialog) {

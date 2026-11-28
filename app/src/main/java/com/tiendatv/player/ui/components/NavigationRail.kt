@@ -4,6 +4,10 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import com.tiendatv.player.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -167,20 +171,13 @@ fun TiendaNavigationRail(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Start
             ) {
-                Box(
+                Image(
+                    painter = painterResource(id = R.drawable.ic_launcher_fg),
+                    contentDescription = "TiendaTV",
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(Brush.linearGradient(listOf(c.accent, c.accentLight))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.LiveTv,
-                        contentDescription = "TiendaTV",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                        .size(36.dp)
+                        .clip(CircleShape)
+                )
                 if (isRailFocused) {
                     Text(
                         text = buildAnnotatedString {

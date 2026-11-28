@@ -150,7 +150,7 @@ fun CatalogGridScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(216.dp)
+                        .height(234.dp)
                         .background(if (c.isDark) Color(0xFF000000) else c.canvasTop)
                 ) {
                     val artworkUrl = heroItem?.backdropUrl?.ifBlank { heroItem.logoUrl }.orEmpty()
@@ -161,7 +161,7 @@ fun CatalogGridScreen(
                             label = "catalogHeroArt",
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
-                                .fillMaxWidth(0.58f)
+                                .fillMaxWidth(0.68f)
                                 .fillMaxHeight()
                         ) { url ->
                             AsyncImage(
@@ -181,8 +181,8 @@ fun CatalogGridScreen(
                             .background(
                                 Brush.horizontalGradient(
                                     0.0f to fadeBg,
-                                    0.46f to fadeBg.copy(alpha = 0.96f),
-                                    0.72f to fadeBg.copy(alpha = 0.45f),
+                                    0.36f to fadeBg.copy(alpha = 0.94f),
+                                    0.66f to fadeBg.copy(alpha = 0.40f),
                                     1.0f to Color.Transparent
                                 )
                             )
@@ -192,8 +192,9 @@ fun CatalogGridScreen(
                             .fillMaxSize()
                             .background(
                                 Brush.verticalGradient(
-                                    0.0f to Color.Transparent,
-                                    0.75f to Color.Transparent,
+                                    0.0f to fadeBg.copy(alpha = 0.25f),
+                                    0.45f to Color.Transparent,
+                                    0.78f to fadeBg.copy(alpha = 0.72f),
                                     1.0f to fadeBg
                                 )
                             )
