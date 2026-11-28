@@ -204,41 +204,27 @@ private fun TiendaTvRoot(viewModel: MainViewModel) {
                                 title = strings.syncingCatalog
                             )
                         } else if (state.selectedTab == NavTab.HOME && state.activeSeries == null) {
-                            // True 100% edge-to-edge full-bleed Home with floating translucent rail (zero gap, zero push)
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                HomeScreen(
-                                    counts = state.counts,
-                                    heroItem = state.heroItem,
-                                    continueWatching = state.continueWatching,
-                                    recentlyWatched = state.recentlyWatched,
-                                    favorites = state.favoriteItems,
-                                    featuredMovies = state.featuredMovies,
-                                    featuredSeries = state.featuredSeries,
-                                    favoriteUids = state.favoriteUids,
-                                    strings = strings,
-                                    onNavigateTab = { viewModel.selectTab(it) },
-                                    onOpenMedia = { viewModel.openMedia(it) },
-                                    onResumeHistory = { viewModel.resumeHistory(it) },
-                                    onRemoveHistory = { viewModel.removeHistoryItem(it) },
-                                    onClearHistory = { viewModel.clearHistory() },
-                                    onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                    onReloadCatalog = { viewModel.syncActiveProfile() },
-                                    onExitApp = { activity?.finish() },
-                                    primaryFocusRequester = homeFocusRequester
-                                )
-                                TiendaNavigationRail(
-                                    selectedTab = state.selectedTab,
-                                    strings = strings,
-                                    onSelectTab = { viewModel.selectTab(it) },
-                                    floatingOverlay = true,
-                                    railFocusRequester = railFocusRequester,
-                                    onExitRight = {
-                                        try { homeFocusRequester.requestFocus() } catch (_: Exception) {}
-                                    },
-                                    onFocusStateChanged = { isRailFocused = it },
-                                    modifier = Modifier.align(Alignment.CenterStart)
-                                )
-                            }
+                            // Pure full-bleed IBO-style Home with integrated fixed left vertical menu (zero trap, zero push)
+                            HomeScreen(
+                                counts = state.counts,
+                                heroItem = state.heroItem,
+                                continueWatching = state.continueWatching,
+                                recentlyWatched = state.recentlyWatched,
+                                favorites = state.favoriteItems,
+                                featuredMovies = state.featuredMovies,
+                                featuredSeries = state.featuredSeries,
+                                favoriteUids = state.favoriteUids,
+                                strings = strings,
+                                onNavigateTab = { viewModel.selectTab(it) },
+                                onOpenMedia = { viewModel.openMedia(it) },
+                                onResumeHistory = { viewModel.resumeHistory(it) },
+                                onRemoveHistory = { viewModel.removeHistoryItem(it) },
+                                onClearHistory = { viewModel.clearHistory() },
+                                onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                onReloadCatalog = { viewModel.syncActiveProfile() },
+                                onExitApp = { showExitDialog = true },
+                                primaryFocusRequester = homeFocusRequester
+                            )
                         } else {
                             Row(
                                 modifier = Modifier.fillMaxSize(),
